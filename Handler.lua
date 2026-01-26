@@ -4,6 +4,9 @@ local CsyncHandler = {
     Drawings = {},
     Enabled = false,
     PositionHistory = {},
+    LockedPosition = nil,
+    LockedUntil = nil,
+    ToggleKey = Enum.KeyCode.V,
     
     Config = {
         Position = {
@@ -49,6 +52,121 @@ local CsyncHandler = {
     }
 }
 
+-- Easy-to-use functions
+function CsyncPos(x, y, z)
+    CsyncHandler.Config.Position.X = x or CsyncHandler.Config.Position.X
+    CsyncHandler.Config.Position.Y = y or CsyncHandler.Config.Position.Y
+    CsyncHandler.Config.Position.Z = z or CsyncHandler.Config.Position.Z
+end
+
+function Csync(state)
+    CsyncHandler.Enabled = state
+    CsyncHandler:createVisuals()
+end
+
+function CsyncServPred(state)
+    CsyncHandler.Config.UseServerPrediction = state
+end
+
+function CsyncLine(state)
+    CsyncHandler.Config.Visuals.ShowLine = state
+    CsyncHandler:createVisuals()
+end
+
+function CsyncLineColorSet(r, g, b)
+    CsyncHandler.Config.Visuals.Line.MainColor = Color3.fromRGB(r, g, b)
+    CsyncHandler:createVisuals()
+end
+
+function CsyncOutLineColorSet(r, g, b)
+    CsyncHandler.Config.Visuals.Line.OutlineColor = Color3.fromRGB(r, g, b)
+    CsyncHandler:createVisuals()
+end
+
+function CsyncLineTrans(value)
+    CsyncHandler.Config.Visuals.Line.MainTransparency = math.clamp(value, 0, 1)
+    CsyncHandler:createVisuals()
+end
+
+function CsyncOutLineTrans(value)
+    CsyncHandler.Config.Visuals.Line.OutlineTransparency = math.clamp(value, 0, 1)
+    CsyncHandler:createVisuals()
+end
+
+function CsyncVisualType(type)
+    CsyncHandler.Config.Visuals.VisualType = type
+    CsyncHandler:createVisuals()
+end
+
+function CsyncSetMesh(meshId)
+    CsyncHandler.Config.Visuals.MeshId = meshId
+    CsyncHandler:createVisuals()
+end
+
+function CsyncMeshScale(x, y, z)
+    CsyncHandler.Config.Visuals.MeshScale = Vector3.new(x, y, z)
+    CsyncHandler:createVisuals()
+end
+
+function CsyncMeshOffset(x, y, z)
+    CsyncHandler.Config.Visuals.MeshOffset = Vector3.new(x, y, z)
+    CsyncHandler:createVisuals()
+end
+
+function CsyncMeshId(textureId)
+    CsyncHandler.Config.Visuals.ImageId = textureId
+    CsyncHandler:createVisuals()
+end
+
+function CsyncImageScaleSet(scale)
+    CsyncHandler.Config.Visuals.ImageScale = scale
+    CsyncHandler:createVisuals()
+end
+
+function CsyncHighlight(state)
+    CsyncHandler.Config.Visuals.Highlight.Enabled = state
+    CsyncHandler:createVisuals()
+end
+
+function CsyncHighlightFill(r, g, b)
+    CsyncHandler.Config.Visuals.Highlight.FillColor = Color3.fromRGB(r, g, b)
+    CsyncHandler:createVisuals()
+end
+
+function CsyncHighlightOutLine(r, g, b)
+    CsyncHandler.Config.Visuals.Highlight.OutlineColor = Color3.fromRGB(r, g, b)
+    CsyncHandler:createVisuals()
+end
+
+function CsyncHighlightFillTrans(value)
+    CsyncHandler.Config.Visuals.Highlight.FillTransparency = math.clamp(value, 0, 1)
+    CsyncHandler:createVisuals()
+end
+
+function CsyncHighlightOutLineTrans(value)
+    CsyncHandler.Config.Visuals.Highlight.OutlineTransparency = math.clamp(value, 0, 1)
+    CsyncHandler:createVisuals()
+end
+
+function CsyncSetLockPos(x, y, z, time)
+    CsyncHandler.LockedPosition = Vector3.new(x, y, z)
+    CsyncHandler.LockedUntil = time and (tick() + time) or math.huge
+end
+
+function CsyncUnlockPos()
+    CsyncHandler.LockedPosition = nil
+    CsyncHandler.LockedUntil = nil
+end
+
+function CsyncKeybindSet(key)
+    if typeof(key) == "string" then
+        key = Enum.KeyCode[key:upper()]
+    end
+    CsyncHandler.ToggleKey = key
+    CsyncHandler:SetupInputConnection()
+end
+
+-- Main handler methods
 function CsyncHandler:Initialize()
     local RunService = game:GetService("RunService")
     local Players = game:GetService("Players")
@@ -96,6 +214,9 @@ function CsyncHandler:Cleanup()
         hookmetamethod(game, "__index", self.OriginalCFrameIndex)
         self.OriginalCFrameIndex = nil
     end
+    
+    self.LockedPosition = nil
+    self.LockedUntil = nil
 end
 
 function CsyncHandler:getPing()
@@ -158,12 +279,6 @@ function CsyncHandler:getPredictedServerPosition()
     end
     
     return self.playerHumanoidRootPart.Position
-end
-
-function CsyncHandler:refreshVisuals()
-    if self.Enabled then
-        self:createVisuals()
-    end
 end
 
 function CsyncHandler:createVisuals()
@@ -356,22 +471,15 @@ function CsyncHandler:updateImagePosition()
     self.Instances.imageFrame.Position = UDim2.new(0, screenPoint.X, 0, screenPoint.Y)
 end
 
-function CsyncHandler:SetupConnections()
-    local RunService = game:GetService("RunService")
+function CsyncHandler:SetupInputConnection()
     local UserInputService = game:GetService("UserInputService")
     
-    self.Connections.characterAdded = self.player.CharacterAdded:Connect(function(NewCharacter)
-        self.playerCharacter = NewCharacter
-        self.playerHumanoid = self.playerCharacter:WaitForChild("Humanoid")
-        self.playerHumanoidRootPart = self.playerCharacter:WaitForChild("HumanoidRootPart")
-        
-        if self.Enabled then
-            self:createVisuals()
-        end
-    end)
+    if self.Connections.inputBegan then
+        self.Connections.inputBegan:Disconnect()
+    end
     
     self.Connections.inputBegan = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if not gameProcessed and input.KeyCode == Enum.KeyCode.V then
+        if not gameProcessed and input.KeyCode == self.ToggleKey then
             self.Enabled = not self.Enabled
             
             if self.Enabled then
@@ -396,12 +504,37 @@ function CsyncHandler:SetupConnections()
             end
         end
     end)
+end
+
+function CsyncHandler:SetupConnections()
+    local RunService = game:GetService("RunService")
+    
+    self.Connections.characterAdded = self.player.CharacterAdded:Connect(function(NewCharacter)
+        self.playerCharacter = NewCharacter
+        self.playerHumanoid = self.playerCharacter:WaitForChild("Humanoid")
+        self.playerHumanoidRootPart = self.playerCharacter:WaitForChild("HumanoidRootPart")
+        
+        if self.Enabled then
+            self:createVisuals()
+        end
+    end)
+    
+    self:SetupInputConnection()
     
     self.Connections.heartbeat = RunService.Heartbeat:Connect(function(deltaTime)
         if self.playerCharacter and self.playerHumanoidRootPart then
             self.playerHumanoidRootPartCFrame = self.playerHumanoidRootPart.CFrame
             
-            local basePosition = self:getPredictedServerPosition()
+            local basePosition
+            if self.LockedPosition and tick() < self.LockedUntil then
+                basePosition = self.LockedPosition
+            else
+                basePosition = self:getPredictedServerPosition()
+                if self.LockedPosition and tick() >= self.LockedUntil then
+                    self.LockedPosition = nil
+                    self.LockedUntil = nil
+                end
+            end
             
             local currentX = self.Enabled and self.Config.Position.X or 0
             local currentY = self.Enabled and self.Config.Position.Y or 0
@@ -439,139 +572,36 @@ function CsyncHandler:SetupConnections()
     end)
 end
 
--- Helper Functions
-function CsyncPos(x, y, z)
-    CsyncHandler.Config.Position.X = x
-    CsyncHandler.Config.Position.Y = y
-    CsyncHandler.Config.Position.Z = z
-end
-
-function Csync(state)
-    CsyncHandler.Enabled = state
-    if state then
-        CsyncHandler:createVisuals()
-    else
-        if CsyncHandler.Instances.desyncVisual then
-            CsyncHandler.Instances.desyncVisual:Destroy()
-            CsyncHandler.Instances.desyncVisual = nil
-        end
-        if CsyncHandler.Instances.imageGui then
-            CsyncHandler.Instances.imageGui:Destroy()
-            CsyncHandler.Instances.imageGui = nil
-        end
-        if CsyncHandler.Drawings.line then
-            CsyncHandler.Drawings.line:Remove()
-            CsyncHandler.Drawings.line = nil
-        end
-        if CsyncHandler.Drawings.lineOutline then
-            CsyncHandler.Drawings.lineOutline:Remove()
-            CsyncHandler.Drawings.lineOutline = nil
-        end
-    end
-end
-
-function CsyncServPred(state)
-    CsyncHandler.Config.UseServerPrediction = state
-end
-
-function CsyncLine(state)
-    CsyncHandler.Config.Visuals.ShowLine = state
-    CsyncHandler:refreshVisuals()
-end
-
-function CsyncLineColorSet(r, g, b)
-    CsyncHandler.Config.Visuals.Line.MainColor = Color3.fromRGB(r, g, b)
-    if CsyncHandler.Drawings.line then
-        CsyncHandler.Drawings.line.Color = Color3.fromRGB(r, g, b)
-    end
-end
-
-function CsyncOutLineColorSet(r, g, b)
-    CsyncHandler.Config.Visuals.Line.OutlineColor = Color3.fromRGB(r, g, b)
-    if CsyncHandler.Drawings.lineOutline then
-        CsyncHandler.Drawings.lineOutline.Color = Color3.fromRGB(r, g, b)
-    end
-end
-
-function CsyncLineTrans(transparency)
-    CsyncHandler.Config.Visuals.Line.MainTransparency = transparency
-    if CsyncHandler.Drawings.line then
-        CsyncHandler.Drawings.line.Transparency = transparency
-    end
-end
-
-function CsyncOutLineTrans(transparency)
-    CsyncHandler.Config.Visuals.Line.OutlineTransparency = transparency
-    if CsyncHandler.Drawings.lineOutline then
-        CsyncHandler.Drawings.lineOutline.Transparency = transparency
-    end
-end
-
-function CsyncVisualType(type)
-    if type == "Both" or type == "Mesh" or type == "Image" then
-        CsyncHandler.Config.Visuals.VisualType = type
-        CsyncHandler:refreshVisuals()
-    end
-end
-
-function CsyncMesh(meshId)
-    CsyncHandler.Config.Visuals.MeshId = meshId
-    CsyncHandler:refreshVisuals()
-end
-
-function CsyncMeshScale(x, y, z)
-    CsyncHandler.Config.Visuals.MeshScale = Vector3.new(x, y, z)
-    CsyncHandler:refreshVisuals()
-end
-
-function CsyncMeshOffset(x, y, z)
-    CsyncHandler.Config.Visuals.MeshOffset = Vector3.new(x, y, z)
-    CsyncHandler:refreshVisuals()
-end
-
-function CsyncMeshId(imageId)
-    CsyncHandler.Config.Visuals.ImageId = imageId
-    CsyncHandler:refreshVisuals()
-end
-
-function CsyncImageScaleSet(scale)
-    CsyncHandler.Config.Visuals.ImageScale = scale
-    CsyncHandler:refreshVisuals()
-end
-
-function CsyncHighlight(state)
-    CsyncHandler.Config.Visuals.Highlight.Enabled = state
-    CsyncHandler:refreshVisuals()
-end
-
-function CsyncHighlightFill(r, g, b)
-    CsyncHandler.Config.Visuals.Highlight.FillColor = Color3.fromRGB(r, g, b)
-    CsyncHandler:refreshVisuals()
-end
-
-function CsyncHighlightOutLine(r, g, b)
-    CsyncHandler.Config.Visuals.Highlight.OutlineColor = Color3.fromRGB(r, g, b)
-    CsyncHandler:refreshVisuals()
-end
-
-function CsyncHighlightFillTrans(transparency)
-    CsyncHandler.Config.Visuals.Highlight.FillTransparency = transparency
-    CsyncHandler:refreshVisuals()
-end
-
-function CsyncHighlightOutLineTrans(transparency)
-    CsyncHandler.Config.Visuals.Highlight.OutlineTransparency = transparency
-    CsyncHandler:refreshVisuals()
-end
-
--- Export as a module
+-- Export functions and handler
 if _G.CsyncHandler then
     _G.CsyncHandler:Cleanup()
 end
 
 _G.CsyncHandler = CsyncHandler
+_G.CsyncPos = CsyncPos
+_G.Csync = Csync
+_G.CsyncServPred = CsyncServPred
+_G.CsyncLine = CsyncLine
+_G.CsyncLineColorSet = CsyncLineColorSet
+_G.CsyncOutLineColorSet = CsyncOutLineColorSet
+_G.CsyncLineTrans = CsyncLineTrans
+_G.CsyncOutLineTrans = CsyncOutLineTrans
+_G.CsyncVisualType = CsyncVisualType
+_G.CsyncSetMesh = CsyncSetMesh
+_G.CsyncMeshScale = CsyncMeshScale
+_G.CsyncMeshOffset = CsyncMeshOffset
+_G.CsyncMeshId = CsyncMeshId
+_G.CsyncImageScaleSet = CsyncImageScaleSet
+_G.CsyncHighlight = CsyncHighlight
+_G.CsyncHighlightFill = CsyncHighlightFill
+_G.CsyncHighlightOutLine = CsyncHighlightOutLine
+_G.CsyncHighlightFillTrans = CsyncHighlightFillTrans
+_G.CsyncHighlightOutLineTrans = CsyncHighlightOutLineTrans
+_G.CsyncSetLockPos = CsyncSetLockPos
+_G.CsyncUnlockPos = CsyncUnlockPos
+_G.CsyncKeybindSet = CsyncKeybindSet
 
--- Auto-initialize when loaded
+-- Auto-initialize
 CsyncHandler:Initialize()
 
 return CsyncHandler
