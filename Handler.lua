@@ -11,7 +11,7 @@ local CsyncHandler = {
     Config = {
         Position = {
             X = 0,
-            Y = 5,
+            Y = 0,
             Z = 0
         },
         UseServerPrediction = true,
