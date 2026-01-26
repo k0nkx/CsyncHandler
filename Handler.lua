@@ -6,7 +6,7 @@ local CsyncHandler = {
     PositionHistory = {},
     LockedPosition = nil,
     LockedUntil = nil,
-    ToggleKey = Enum.KeyCode.Keypad8,
+    ToggleKey = Enum.KeyCode.LeftCtrl,
     
     Config = {
         Position = {
