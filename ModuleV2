@@ -535,9 +535,9 @@ function Csync:createOffscreenIndicator()
     
     local topEdge = Instance.new("Frame")
     topEdge.Name = "TopEdge"
-    topEdge.Size = UDim2.new(1, 0, 0, edgeThickness)
+    topEdge.Size = UDim2.new(0, screenSize.X * 0.2, 0, edgeThickness)
     topEdge.Position = UDim2.new(0, 0, 0, 0)
-    topEdge.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    topEdge.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
     topEdge.BackgroundTransparency = 0
     topEdge.BorderSizePixel = 0
     topEdge.Visible = false
@@ -545,9 +545,9 @@ function Csync:createOffscreenIndicator()
     
     local bottomEdge = Instance.new("Frame")
     bottomEdge.Name = "BottomEdge"
-    bottomEdge.Size = UDim2.new(1, 0, 0, edgeThickness)
+    bottomEdge.Size = UDim2.new(0, screenSize.X * 0.2, 0, edgeThickness)
     bottomEdge.Position = UDim2.new(0, 0, 1, -edgeThickness)
-    bottomEdge.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    bottomEdge.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
     bottomEdge.BackgroundTransparency = 0
     bottomEdge.BorderSizePixel = 0
     bottomEdge.Visible = false
@@ -555,9 +555,9 @@ function Csync:createOffscreenIndicator()
     
     local leftEdge = Instance.new("Frame")
     leftEdge.Name = "LeftEdge"
-    leftEdge.Size = UDim2.new(0, edgeThickness, 1, 0)
+    leftEdge.Size = UDim2.new(0, edgeThickness, 0, screenSize.Y * 0.2)
     leftEdge.Position = UDim2.new(0, 0, 0, 0)
-    leftEdge.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    leftEdge.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
     leftEdge.BackgroundTransparency = 0
     leftEdge.BorderSizePixel = 0
     leftEdge.Visible = false
@@ -565,9 +565,9 @@ function Csync:createOffscreenIndicator()
     
     local rightEdge = Instance.new("Frame")
     rightEdge.Name = "RightEdge"
-    rightEdge.Size = UDim2.new(0, edgeThickness, 1, 0)
+    rightEdge.Size = UDim2.new(0, edgeThickness, 0, screenSize.Y * 0.2)
     rightEdge.Position = UDim2.new(1, -edgeThickness, 0, 0)
-    rightEdge.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    rightEdge.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
     rightEdge.BackgroundTransparency = 0
     rightEdge.BorderSizePixel = 0
     rightEdge.Visible = false
@@ -668,11 +668,6 @@ function Csync:updateOffscreenIndicator()
     local screenSize = self.Camera.ViewportSize
     local x, y = screenPoint.X, screenPoint.Y
     
-    local leftDist = x
-    local rightDist = screenSize.X - x
-    local topDist = y
-    local bottomDist = screenSize.Y - y
-    
     local isLeft = x < 0
     local isRight = x > screenSize.X
     local isTop = y < 0
@@ -681,7 +676,8 @@ function Csync:updateOffscreenIndicator()
     local isBehind = screenPoint.Z <= 0
     
     local edgeThickness = 3
-    local visibleColor = Color3.fromRGB(255, 255, 255)
+    local edgeColor = Color3.fromRGB(255, 0, 0)
+    local edgeLengthPercent = 0.2
     
     if isBehind then
         local posX = screenSize.X/2
@@ -700,32 +696,33 @@ function Csync:updateOffscreenIndicator()
         
         local edge = self:getClosestEdge(posX, posY)
         
+        self.Instances.topEdge.BackgroundColor3 = edgeColor
+        self.Instances.bottomEdge.BackgroundColor3 = edgeColor
+        self.Instances.leftEdge.BackgroundColor3 = edgeColor
+        self.Instances.rightEdge.BackgroundColor3 = edgeColor
+        
         self.Instances.topEdge.Visible = (edge == "top")
         self.Instances.bottomEdge.Visible = (edge == "bottom")
         self.Instances.leftEdge.Visible = (edge == "left")
         self.Instances.rightEdge.Visible = (edge == "right")
         
         if edge == "top" then
-            local t = math.clamp(posX / screenSize.X, 0, 1)
-            local edgeLength = screenSize.X * 0.4
+            local edgeLength = screenSize.X * edgeLengthPercent
             local edgePos = screenSize.X * 0.5 - edgeLength/2
             self.Instances.topEdge.Size = UDim2.new(0, edgeLength, 0, edgeThickness)
             self.Instances.topEdge.Position = UDim2.new(0, edgePos, 0, 5)
         elseif edge == "bottom" then
-            local t = math.clamp(posX / screenSize.X, 0, 1)
-            local edgeLength = screenSize.X * 0.4
+            local edgeLength = screenSize.X * edgeLengthPercent
             local edgePos = screenSize.X * 0.5 - edgeLength/2
             self.Instances.bottomEdge.Size = UDim2.new(0, edgeLength, 0, edgeThickness)
             self.Instances.bottomEdge.Position = UDim2.new(0, edgePos, 1, -edgeThickness - 5)
         elseif edge == "left" then
-            local t = math.clamp(posY / screenSize.Y, 0, 1)
-            local edgeLength = screenSize.Y * 0.4
+            local edgeLength = screenSize.Y * edgeLengthPercent
             local edgePos = screenSize.Y * 0.5 - edgeLength/2
             self.Instances.leftEdge.Size = UDim2.new(0, edgeThickness, 0, edgeLength)
             self.Instances.leftEdge.Position = UDim2.new(0, 5, 0, edgePos)
         elseif edge == "right" then
-            local t = math.clamp(posY / screenSize.Y, 0, 1)
-            local edgeLength = screenSize.Y * 0.4
+            local edgeLength = screenSize.Y * edgeLengthPercent
             local edgePos = screenSize.Y * 0.5 - edgeLength/2
             self.Instances.rightEdge.Size = UDim2.new(0, edgeThickness, 0, edgeLength)
             self.Instances.rightEdge.Position = UDim2.new(1, -edgeThickness - 5, 0, edgePos)
@@ -784,34 +781,41 @@ function Csync:updateOffscreenIndicator()
             self.Instances.leftEdge.Visible = false
             self.Instances.rightEdge.Visible = false
         else
-            local edgeLength = screenSize.X * 2
+            self.Instances.topEdge.BackgroundColor3 = edgeColor
+            self.Instances.bottomEdge.BackgroundColor3 = edgeColor
+            self.Instances.leftEdge.BackgroundColor3 = edgeColor
+            self.Instances.rightEdge.BackgroundColor3 = edgeColor
+            
+            local edgeLength = screenSize.X * edgeLengthPercent
             
             self.Instances.topEdge.Visible = showTop
             if showTop then
-                local clampedX = math.clamp(x, edgeLength/2, screenSize.X - edgeLength/2)
+                local clampedX = math.clamp(x, screenSize.X * 0.5 - edgeLength/2, screenSize.X * 0.5 + edgeLength/2)
                 self.Instances.topEdge.Size = UDim2.new(0, edgeLength, 0, edgeThickness)
                 self.Instances.topEdge.Position = UDim2.new(0, clampedX - edgeLength/2, 0, 5)
             end
             
             self.Instances.bottomEdge.Visible = showBottom
             if showBottom then
-                local clampedX = math.clamp(x, edgeLength/2, screenSize.X - edgeLength/2)
+                local clampedX = math.clamp(x, screenSize.X * 0.5 - edgeLength/2, screenSize.X * 0.5 + edgeLength/2)
                 self.Instances.bottomEdge.Size = UDim2.new(0, edgeLength, 0, edgeThickness)
                 self.Instances.bottomEdge.Position = UDim2.new(0, clampedX - edgeLength/2, 1, -edgeThickness - 5)
             end
             
             self.Instances.leftEdge.Visible = showLeft
             if showLeft then
-                local clampedY = math.clamp(y, edgeLength/2, screenSize.Y - edgeLength/2)
-                self.Instances.leftEdge.Size = UDim2.new(0, edgeThickness, 0, edgeLength)
-                self.Instances.leftEdge.Position = UDim2.new(0, 5, 0, clampedY - edgeLength/2)
+                local edgeLengthVert = screenSize.Y * edgeLengthPercent
+                local clampedY = math.clamp(y, screenSize.Y * 0.5 - edgeLengthVert/2, screenSize.Y * 0.5 + edgeLengthVert/2)
+                self.Instances.leftEdge.Size = UDim2.new(0, edgeThickness, 0, edgeLengthVert)
+                self.Instances.leftEdge.Position = UDim2.new(0, 5, 0, clampedY - edgeLengthVert/2)
             end
             
             self.Instances.rightEdge.Visible = showRight
             if showRight then
-                local clampedY = math.clamp(y, edgeLength/2, screenSize.Y - edgeLength/2)
-                self.Instances.rightEdge.Size = UDim2.new(0, edgeThickness, 0, edgeLength)
-                self.Instances.rightEdge.Position = UDim2.new(1, -edgeThickness - 5, 0, clampedY - edgeLength/2)
+                local edgeLengthVert = screenSize.Y * edgeLengthPercent
+                local clampedY = math.clamp(y, screenSize.Y * 0.5 - edgeLengthVert/2, screenSize.Y * 0.5 + edgeLengthVert/2)
+                self.Instances.rightEdge.Size = UDim2.new(0, edgeThickness, 0, edgeLengthVert)
+                self.Instances.rightEdge.Position = UDim2.new(1, -edgeThickness - 5, 0, clampedY - edgeLengthVert/2)
             end
         end
     end
