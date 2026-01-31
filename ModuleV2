@@ -531,8 +531,8 @@ function Csync:createOffscreenIndicator()
     mainContainer.Parent = screenGui
     
     local screenSize = self.Camera.ViewportSize
-    local edgeThickness = 2
-    local strokeThickness = 1
+    local edgeThickness = 3
+    local strokeThickness = 2
     
     local topEdge = Instance.new("Frame")
     topEdge.Name = "TopEdge"
