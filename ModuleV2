@@ -315,6 +315,9 @@ function Csync:hideVisuals()
     if self.Instances.imageGui then
         self.Instances.imageGui.Enabled = false
     end
+    if self.Instances.offscreenGui then
+        self.Instances.offscreenGui.Enabled = false
+    end
     if self.Drawings.line then
         self.Drawings.line.Visible = false
     end
@@ -392,6 +395,10 @@ function Csync:createVisuals()
     
     if self.Instances.imageGui then
         self.Instances.imageGui:Destroy()
+    end
+    
+    if self.Instances.offscreenGui then
+        self.Instances.offscreenGui:Destroy()
     end
     
     if self.Drawings.line then
@@ -499,6 +506,75 @@ function Csync:createVisuals()
         self.Drawings.lineOutline = lineOutline
         self.Drawings.line = line
     end
+    
+    self:createOffscreenIndicator()
+end
+
+function Csync:createOffscreenIndicator()
+    if self.Instances.offscreenGui then
+        self.Instances.offscreenGui:Destroy()
+    end
+    
+    if not self.VisualsEnabled then return end
+    
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "OffscreenIndicator"
+    screenGui.ResetOnSpawn = false
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    screenGui.Enabled = true
+    
+    local imageLabel = Instance.new("ImageLabel")
+    imageLabel.Name = "OffscreenImage"
+    imageLabel.Size = UDim2.new(0, 50 * self.Config.Visuals.ImageScale, 0, 50 * self.Config.Visuals.ImageScale)
+    imageLabel.BackgroundTransparency = 1
+    imageLabel.Image = self.Config.Visuals.ImageId
+    imageLabel.ScaleType = Enum.ScaleType.Fit
+    imageLabel.Visible = false
+    imageLabel.Parent = screenGui
+    
+    screenGui.Parent = self.CoreGui
+    
+    self.Instances.offscreenGui = screenGui
+    self.Instances.offscreenImage = imageLabel
+end
+
+function Csync:updateOffscreenIndicator()
+    if not self.VisualsEnabled then return end
+    if not self.Instances.offscreenImage then return end
+    if not self.Instances.desyncVisual then return end
+    
+    local desyncPos = self.Instances.desyncVisual.Position
+    local screenPoint = self.Camera:WorldToViewportPoint(desyncPos)
+    
+    local screenSize = self.Camera.ViewportSize
+    local margin = 50
+    
+    local image = self.Instances.offscreenImage
+    
+    if screenPoint.Z > 0 then
+        image.Visible = false
+        return
+    end
+    
+    image.Visible = true
+    
+    local x, y = screenPoint.X, screenPoint.Y
+    
+    local angle = math.atan2(y - screenSize.Y/2, x - screenSize.X/2)
+    
+    local screenX = screenSize.X/2 + (screenSize.X/2 - margin) * math.cos(angle)
+    local screenY = screenSize.Y/2 + (screenSize.Y/2 - margin) * math.sin(angle)
+    
+    if screenX < margin then screenX = margin end
+    if screenX > screenSize.X - margin then screenX = screenSize.X - margin end
+    if screenY < margin then screenY = margin end
+    if screenY > screenSize.Y - margin then screenY = screenSize.Y - margin end
+    
+    image.Position = UDim2.new(0, screenX, 0, screenY)
+    image.AnchorPoint = Vector2.new(0.5, 0.5)
+    
+    local rotationDegrees = math.deg(angle)
+    image.Rotation = rotationDegrees + 90
 end
 
 function Csync:updateLines()
@@ -573,7 +649,12 @@ function Csync:updateImagePosition()
     local desyncPos = self.Instances.desyncVisual.Position
     local screenPoint = self.Camera:WorldToScreenPoint(desyncPos)
     
-    self.Instances.imageFrame.Position = UDim2.new(0, screenPoint.X, 0, screenPoint.Y)
+    if screenPoint.Z > 0 then
+        self.Instances.imageFrame.Position = UDim2.new(0, screenPoint.X, 0, screenPoint.Y)
+        self.Instances.imageGui.Enabled = true
+    else
+        self.Instances.imageGui.Enabled = false
+    end
 end
 
 function Csync:SetupInputConnection()
@@ -643,6 +724,7 @@ function Csync:SetupConnections()
     self.Connections.renderStepped = self.RunService.RenderStepped:Connect(function()
         self:updateLines()
         self:updateImagePosition()
+        self:updateOffscreenIndicator()
     end)
     
     self.OriginalCFrameIndex = hookmetamethod(game, "__index", function(Instance, Property)
