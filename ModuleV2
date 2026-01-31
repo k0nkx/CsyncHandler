@@ -531,12 +531,12 @@ function Csync:createOffscreenIndicator()
     mainContainer.Parent = screenGui
     
     local screenSize = self.Camera.ViewportSize
-    local edgeThickness = 3
-    local strokeThickness = 2
+    local edgeThickness = 2
+    local strokeThickness = 1
     
     local topEdge = Instance.new("Frame")
     topEdge.Name = "TopEdge"
-    topEdge.Size = UDim2.new(0, screenSize.X * 0.2, 0, edgeThickness)
+    topEdge.Size = UDim2.new(0, screenSize.X * 0.002, 0, edgeThickness)
     topEdge.Position = UDim2.new(0, 0, 0, 0)
     topEdge.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
     topEdge.BackgroundTransparency = 0
@@ -553,7 +553,7 @@ function Csync:createOffscreenIndicator()
     
     local bottomEdge = Instance.new("Frame")
     bottomEdge.Name = "BottomEdge"
-    bottomEdge.Size = UDim2.new(0, screenSize.X * 0.2, 0, edgeThickness)
+    bottomEdge.Size = UDim2.new(0, screenSize.X * 0.002, 0, edgeThickness)
     bottomEdge.Position = UDim2.new(0, 0, 1, -edgeThickness)
     bottomEdge.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
     bottomEdge.BackgroundTransparency = 0
@@ -570,7 +570,7 @@ function Csync:createOffscreenIndicator()
     
     local leftEdge = Instance.new("Frame")
     leftEdge.Name = "LeftEdge"
-    leftEdge.Size = UDim2.new(0, edgeThickness, 0, screenSize.Y * 0.2)
+    leftEdge.Size = UDim2.new(0, edgeThickness, 0, screenSize.Y * 0.002)
     leftEdge.Position = UDim2.new(0, 0, 0, 0)
     leftEdge.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
     leftEdge.BackgroundTransparency = 0
@@ -587,7 +587,7 @@ function Csync:createOffscreenIndicator()
     
     local rightEdge = Instance.new("Frame")
     rightEdge.Name = "RightEdge"
-    rightEdge.Size = UDim2.new(0, edgeThickness, 0, screenSize.Y * 0.2)
+    rightEdge.Size = UDim2.new(0, edgeThickness, 0, screenSize.Y * 0.002)
     rightEdge.Position = UDim2.new(1, -edgeThickness, 0, 0)
     rightEdge.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
     rightEdge.BackgroundTransparency = 0
