@@ -1,8 +1,9 @@
+-- Csync Module by Arctic
+-- Version: 1.0
+-- GitHub: https://raw.githubusercontent.com/YourUsername/Repository/main/Csync.lua
 
-if _G.CSync then
-    _G.CSync.CsyncStop() -- Clean up any existing instance
-    _G.CSync = nil
-end
+local Csync = {}
+Csync.__index = Csync
 
 -- Services
 local RunService = game:GetService("RunService")
@@ -12,102 +13,67 @@ local Camera = workspace.CurrentCamera
 local CoreGui = game:GetService("CoreGui")
 local Stats = game:GetService("Stats")
 
-_G.CSync = {
-    -- Public API Functions
-    CsyncWorldPos = function(x, y, z) end,
-    CsyncPos = function(x, y, z) end,
-    CsyncStop = function() end,
-    GetStatus = function() end,
-    SetConfig = function(newConfig) end
-}
+-- Local variables
+local player = Players.LocalPlayer
+local playerCharacter
+local playerHumanoid
+local playerHumanoidRootPart
+local playerHumanoidRootPartCFrame
 
-local CSyncInternal = {
-    Enabled = false,
-    Connections = {},
-    Instances = {},
-    Drawings = {},
-    PositionHistory = {},
-    OriginalCFrameIndex = nil,
-    Mode = "Relative",
-    CurrentPosition = Vector3.new(0, 0, 0),
-    
-    Config = {
-        UseServerPrediction = true,
-        ServerPrediction = {
-            HistoryDuration = 2,
-            MaxPing = 300,
-            HighPingThreshold = 160,
-            HighPingReduction = 0.9
+-- Configuration
+Csync.Config = {
+    Position = {
+        X = 0,
+        Y = 0,
+        Z = 0
+    },
+    UseServerPrediction = true,
+    ServerPrediction = {
+        HistoryDuration = 2,
+        MaxPing = 300,
+        HighPingThreshold = 160,
+        HighPingReduction = 0.9
+    },
+    Visuals = {
+        Enabled = false,
+        DesyncColor = Color3.fromRGB(0, 162, 255),
+        Transparency = 0,
+        ShowLine = true,
+        Line = {
+            MainColor = Color3.fromRGB(255, 255, 255),
+            OutlineColor = Color3.fromRGB(0, 0, 0),
+            MainThickness = 2,
+            OutlineThickness = 3,
+            MainTransparency = 0,
+            OutlineTransparency = 0,
+            Extension = 1
         },
-        Visuals = {
-            DesyncColor = Color3.fromRGB(0, 162, 255),
-            Transparency = 0,
-            ShowLine = true,
-            Line = {
-                MainColor = Color3.fromRGB(255, 255, 255),
-                OutlineColor = Color3.fromRGB(0, 0, 0),
-                MainThickness = 2,
-                OutlineThickness = 3,
-                MainTransparency = 1,
-                OutlineTransparency = 1,
-                Extension = 1
-            },
-            VisualType = "Both",
-            MeshId = "rbxassetid://14123716423",
-            MeshScale = Vector3.new(0.1, 0.1, 0.1),
-            MeshOffset = Vector3.new(0, -0.8, 0),
-            ImageId = "rbxassetid://94277058488615",
-            ImageScale = 0.38,
-            Highlight = {
-                Enabled = true,
-                FillColor = Color3.fromRGB(245, 173, 255),
-                OutlineColor = Color3.fromRGB(255, 255, 255),
-                FillTransparency = 0.7,
-                OutlineTransparency = 0.5,
-                DepthMode = "AlwaysOnTop"
-            }
+        VisualType = "Both",
+        MeshId = "rbxassetid://14123716423",
+        MeshScale = Vector3.new(0.1, 0.1, 0.1),
+        MeshOffset = Vector3.new(0, -0.8, 0),
+        ImageId = "rbxassetid://94277058488615",
+        ImageScale = 0.38,
+        Highlight = {
+            Enabled = true,
+            FillColor = Color3.fromRGB(245, 173, 255),
+            OutlineColor = Color3.fromRGB(255, 255, 255),
+            FillTransparency = 0.7,
+            OutlineTransparency = 0.5,
+            DepthMode = "AlwaysOnTop"
         }
     }
 }
 
-local player = Players.LocalPlayer
-local playerCharacter = player.Character or player.CharacterAdded:Wait()
-local playerHumanoid = playerCharacter:WaitForChild("Humanoid")
-local playerHumanoidRootPart = playerCharacter:WaitForChild("HumanoidRootPart")
-local playerHumanoidRootPartCFrame = nil
+-- Module state
+Csync.Enabled = false
+Csync.Connections = {}
+Csync.Instances = {}
+Csync.Drawings = {}
+Csync.PositionHistory = {}
+Csync.OriginalCFrameIndex = nil
 
-local function cleanup()
-    CSyncInternal.Enabled = false
-    
-    for _, connection in pairs(CSyncInternal.Connections) do 
-        if connection and typeof(connection) == "RBXScriptConnection" then 
-            connection:Disconnect() 
-        end
-    end
-    
-    for _, instance in pairs(CSyncInternal.Instances) do
-        if instance and instance.Parent then 
-            instance:Destroy() 
-        end
-    end
-    
-    for _, drawing in pairs(CSyncInternal.Drawings) do
-        if drawing then 
-            drawing:Remove() 
-        end
-    end
-    
-    table.clear(CSyncInternal.Connections)
-    table.clear(CSyncInternal.Instances)
-    table.clear(CSyncInternal.Drawings)
-    table.clear(CSyncInternal.PositionHistory)
-    
-    if CSyncInternal.OriginalCFrameIndex then
-        hookmetamethod(game, "__index", CSyncInternal.OriginalCFrameIndex)
-        CSyncInternal.OriginalCFrameIndex = nil
-    end
-end
-
+-- Private functions
 local function getPing()
     local networkPing = player:GetNetworkPing() * 1000
     
@@ -124,28 +90,28 @@ local function getPing()
     
     local totalPing = networkPing + dataPing
     
-    if totalPing > CSyncInternal.Config.ServerPrediction.HighPingThreshold then
-        networkPing = networkPing * CSyncInternal.Config.ServerPrediction.HighPingReduction
+    if totalPing > Csync.Config.ServerPrediction.HighPingThreshold then
+        networkPing = networkPing * Csync.Config.ServerPrediction.HighPingReduction
         totalPing = networkPing + dataPing
     end
     
-    return math.min(totalPing, CSyncInternal.Config.ServerPrediction.MaxPing)
+    return math.min(totalPing, Csync.Config.ServerPrediction.MaxPing)
 end
 
 local function getPredictedServerPosition()
-    if not CSyncInternal.Config.UseServerPrediction then
+    if not Csync.Config.UseServerPrediction then
         return playerHumanoidRootPart.Position
     end
     
     local currentTime = tick()
-    CSyncInternal.PositionHistory[currentTime] = {
+    Csync.PositionHistory[currentTime] = {
         Position = playerHumanoidRootPart.Position,
         Rotation = playerHumanoidRootPart.Rotation
     }
     
-    for time in pairs(CSyncInternal.PositionHistory) do
-        if currentTime - time > CSyncInternal.Config.ServerPrediction.HistoryDuration then
-            CSyncInternal.PositionHistory[time] = nil
+    for time in pairs(Csync.PositionHistory) do
+        if currentTime - time > Csync.Config.ServerPrediction.HistoryDuration then
+            Csync.PositionHistory[time] = nil
         end
     end
     
@@ -155,7 +121,7 @@ local function getPredictedServerPosition()
     local closestTime = nil
     local smallestDiff = math.huge
     
-    for time, data in pairs(CSyncInternal.PositionHistory) do
+    for time, data in pairs(Csync.PositionHistory) do
         local diff = math.abs(time - backtrackTime)
         if diff < smallestDiff then
             smallestDiff = diff
@@ -163,34 +129,35 @@ local function getPredictedServerPosition()
         end
     end
     
-    if closestTime and CSyncInternal.PositionHistory[closestTime] then
-        return CSyncInternal.PositionHistory[closestTime].Position
+    if closestTime and Csync.PositionHistory[closestTime] then
+        return Csync.PositionHistory[closestTime].Position
     end
     
     return playerHumanoidRootPart.Position
 end
 
 local function createVisuals()
-    if CSyncInternal.Instances.desyncVisual then 
-        CSyncInternal.Instances.desyncVisual:Destroy() 
+    if Csync.Instances.desyncVisual then 
+        Csync.Instances.desyncVisual:Destroy() 
     end
     
-    if CSyncInternal.Instances.imageGui then
-        CSyncInternal.Instances.imageGui:Destroy()
+    if Csync.Instances.imageGui then
+        Csync.Instances.imageGui:Destroy()
     end
     
-    if CSyncInternal.Drawings.line then
-        CSyncInternal.Drawings.line:Remove()
+    if Csync.Drawings.line then
+        Csync.Drawings.line:Remove()
     end
     
-    if CSyncInternal.Drawings.lineOutline then
-        CSyncInternal.Drawings.lineOutline:Remove()
+    if Csync.Drawings.lineOutline then
+        Csync.Drawings.lineOutline:Remove()
     end
 
-    if not CSyncInternal.Enabled then return end
+    if not Csync.Enabled then return end
+    if not Csync.Config.Visuals.Enabled then return end
 
     local randomNum = math.random(222, 4444)
-    local visualType = CSyncInternal.Config.Visuals.VisualType
+    local visualType = Csync.Config.Visuals.VisualType
     
     local desyncVisual = nil
     
@@ -198,42 +165,42 @@ local function createVisuals()
         desyncVisual = Instance.new("Part")
         desyncVisual.Name = "DesyVis_Mesh_" .. randomNum
         desyncVisual.Size = Vector3.new(0.1, 0.1, 0.1)
-        desyncVisual.Color = CSyncInternal.Config.Visuals.DesyncColor
+        desyncVisual.Color = Csync.Config.Visuals.DesyncColor
         desyncVisual.Material = Enum.Material.Neon
-        desyncVisual.Transparency = CSyncInternal.Config.Visuals.Transparency
+        desyncVisual.Transparency = Csync.Config.Visuals.Transparency
         desyncVisual.Anchored = true
         desyncVisual.CanCollide = false
         desyncVisual.CastShadow = false
         
         local specialMesh = Instance.new("SpecialMesh")
-        specialMesh.MeshId = CSyncInternal.Config.Visuals.MeshId
+        specialMesh.MeshId = Csync.Config.Visuals.MeshId
         specialMesh.TextureId = "rbxassetid://14123716537"
-        specialMesh.Scale = CSyncInternal.Config.Visuals.MeshScale
-        specialMesh.Offset = CSyncInternal.Config.Visuals.MeshOffset
+        specialMesh.Scale = Csync.Config.Visuals.MeshScale
+        specialMesh.Offset = Csync.Config.Visuals.MeshOffset
         specialMesh.MeshType = Enum.MeshType.FileMesh
         specialMesh.Parent = desyncVisual
         
-        if CSyncInternal.Config.Visuals.Highlight.Enabled then
+        if Csync.Config.Visuals.Highlight.Enabled then
             local highlight = Instance.new("Highlight")
             highlight.Name = "DesyncHighlight"
-            highlight.FillColor = CSyncInternal.Config.Visuals.Highlight.FillColor
-            highlight.OutlineColor = CSyncInternal.Config.Visuals.Highlight.OutlineColor
-            highlight.FillTransparency = CSyncInternal.Config.Visuals.Highlight.FillTransparency
-            highlight.OutlineTransparency = CSyncInternal.Config.Visuals.Highlight.OutlineTransparency
+            highlight.FillColor = Csync.Config.Visuals.Highlight.FillColor
+            highlight.OutlineColor = Csync.Config.Visuals.Highlight.OutlineColor
+            highlight.FillTransparency = Csync.Config.Visuals.Highlight.FillTransparency
+            highlight.OutlineTransparency = Csync.Config.Visuals.Highlight.OutlineTransparency
             
-            if CSyncInternal.Config.Visuals.Highlight.DepthMode == "AlwaysOnTop" then
+            if Csync.Config.Visuals.Highlight.DepthMode == "AlwaysOnTop" then
                 highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
             else
                 highlight.DepthMode = Enum.HighlightDepthMode.Occluded
             end
             
             highlight.Parent = desyncVisual
-            CSyncInternal.Instances.highlight = highlight
+            Csync.Instances.highlight = highlight
         end
 
         desyncVisual.Parent = workspace
-        CSyncInternal.Instances.desyncVisual = desyncVisual
-        CSyncInternal.Instances.specialMesh = specialMesh
+        Csync.Instances.desyncVisual = desyncVisual
+        Csync.Instances.specialMesh = specialMesh
     end
     
     if visualType == "Image" or visualType == "Both" then
@@ -244,8 +211,8 @@ local function createVisuals()
         
         local frame = Instance.new("Frame")
         frame.Name = "ImageContainer"
-        frame.Size = UDim2.new(0, 100 * CSyncInternal.Config.Visuals.ImageScale, 
-                                0, 100 * CSyncInternal.Config.Visuals.ImageScale)
+        frame.Size = UDim2.new(0, 100 * Csync.Config.Visuals.ImageScale, 
+                                0, 100 * Csync.Config.Visuals.ImageScale)
         frame.BackgroundTransparency = 1
         frame.AnchorPoint = Vector2.new(0.5, 0.5)
         frame.Parent = screenGui
@@ -256,62 +223,60 @@ local function createVisuals()
         imageLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
         imageLabel.AnchorPoint = Vector2.new(0.5, 0.5)
         imageLabel.BackgroundTransparency = 1
-        imageLabel.Image = CSyncInternal.Config.Visuals.ImageId
+        imageLabel.Image = Csync.Config.Visuals.ImageId
         imageLabel.ScaleType = Enum.ScaleType.Fit
         imageLabel.Parent = frame
         
         screenGui.Parent = CoreGui
         
-        CSyncInternal.Instances.imageGui = screenGui
-        CSyncInternal.Instances.imageFrame = frame
-        CSyncInternal.Instances.imageLabel = imageLabel
+        Csync.Instances.imageGui = screenGui
+        Csync.Instances.imageFrame = frame
+        Csync.Instances.imageLabel = imageLabel
     end
 
-    if CSyncInternal.Config.Visuals.ShowLine then
+    if Csync.Config.Visuals.ShowLine then
         local lineOutline = Drawing.new("Line")
-        lineOutline.Thickness = CSyncInternal.Config.Visuals.Line.OutlineThickness
-        lineOutline.Color = CSyncInternal.Config.Visuals.Line.OutlineColor
-        lineOutline.Transparency = CSyncInternal.Config.Visuals.Line.OutlineTransparency
+        lineOutline.Thickness = Csync.Config.Visuals.Line.OutlineThickness
+        lineOutline.Color = Csync.Config.Visuals.Line.OutlineColor
+        lineOutline.Transparency = Csync.Config.Visuals.Line.OutlineTransparency
         lineOutline.Visible = true
         
         local line = Drawing.new("Line")
-        line.Thickness = CSyncInternal.Config.Visuals.Line.MainThickness
-        line.Color = CSyncInternal.Config.Visuals.Line.MainColor
-        line.Transparency = CSyncInternal.Config.Visuals.Line.MainTransparency
+        line.Thickness = Csync.Config.Visuals.Line.MainThickness
+        line.Color = Csync.Config.Visuals.Line.MainColor
+        line.Transparency = Csync.Config.Visuals.Line.MainTransparency
         line.Visible = true
         
-        CSyncInternal.Drawings.lineOutline = lineOutline
-        CSyncInternal.Drawings.line = line
+        Csync.Drawings.lineOutline = lineOutline
+        Csync.Drawings.line = line
     end
-    
-    return true
 end
 
 local function updateLines()
-    if not CSyncInternal.Config.Visuals.ShowLine then 
-        if CSyncInternal.Drawings.line then
-            CSyncInternal.Drawings.line.Visible = false
+    if not Csync.Config.Visuals.ShowLine or not Csync.Config.Visuals.Enabled then 
+        if Csync.Drawings.line then
+            Csync.Drawings.line.Visible = false
         end
-        if CSyncInternal.Drawings.lineOutline then
-            CSyncInternal.Drawings.lineOutline.Visible = false
+        if Csync.Drawings.lineOutline then
+            Csync.Drawings.lineOutline.Visible = false
         end
         return 
     end
     
-    if not CSyncInternal.Drawings.line or not CSyncInternal.Drawings.lineOutline then return end
+    if not Csync.Drawings.line or not Csync.Drawings.lineOutline then return end
     
-    local line = CSyncInternal.Drawings.line
-    local lineOutline = CSyncInternal.Drawings.lineOutline
+    local line = Csync.Drawings.line
+    local lineOutline = Csync.Drawings.lineOutline
     
     local visualExists = false
     local visualPosition = nil
     
-    if CSyncInternal.Instances.desyncVisual then
+    if Csync.Instances.desyncVisual then
         visualExists = true
-        visualPosition = CSyncInternal.Instances.desyncVisual.Position
+        visualPosition = Csync.Instances.desyncVisual.Position
     end
     
-    if CSyncInternal.Enabled and playerHumanoidRootPart and visualExists then
+    if Csync.Enabled and playerHumanoidRootPart and visualExists then
         local realPos = playerHumanoidRootPart.Position
         
         local realScreenPos, realVisible = Camera:WorldToViewportPoint(realPos)
@@ -326,7 +291,7 @@ local function updateLines()
             
             if length > 0 then
                 local normalizedDir = direction / length
-                local extension = CSyncInternal.Config.Visuals.Line.Extension
+                local extension = Csync.Config.Visuals.Line.Extension
                 local outlineFrom = fromPos - (normalizedDir * extension)
                 local outlineTo = toPos + (normalizedDir * extension)
                 
@@ -352,58 +317,174 @@ local function updateLines()
 end
 
 local function updateImagePosition()
-    if not CSyncInternal.Enabled then return end
-    if not CSyncInternal.Instances.imageGui then return end
-    if not CSyncInternal.Instances.desyncVisual then return end
+    if not Csync.Enabled then return end
+    if not Csync.Config.Visuals.Enabled then return end
+    if not Csync.Instances.imageGui then return end
+    if not Csync.Instances.desyncVisual then return end
     
-    local desyncPos = CSyncInternal.Instances.desyncVisual.Position
+    local desyncPos = Csync.Instances.desyncVisual.Position
     local screenPoint = Camera:WorldToScreenPoint(desyncPos)
     
-    CSyncInternal.Instances.imageFrame.Position = UDim2.new(0, screenPoint.X, 0, screenPoint.Y)
+    Csync.Instances.imageFrame.Position = UDim2.new(0, screenPoint.X, 0, screenPoint.Y)
 end
 
-local function setupConnections()
-    cleanup()
+-- Public methods
+function Csync:WorldPos(x, y, z)
+    if not self.Enabled then
+        self.Enabled = true
+        self:_initialize()
+    end
     
-    CSyncInternal.Connections.characterAdded = player.CharacterAdded:Connect(function(NewCharacter)
+    self.Config.Position.X = x or 0
+    self.Config.Position.Y = y or 0
+    self.Config.Position.Z = z or 0
+end
+
+function Csync:Pos(x, y, z)
+    return self:WorldPos(x, y, z)
+end
+
+function Csync:Stop()
+    self.Enabled = false
+    
+    -- Cleanup connections
+    for _, connection in pairs(self.Connections) do 
+        if connection and typeof(connection) == "RBXScriptConnection" then 
+            connection:Disconnect() 
+        end
+    end
+    
+    -- Cleanup instances
+    for _, instance in pairs(self.Instances) do
+        if instance and instance.Parent then 
+            instance:Destroy() 
+        end
+    end
+    
+    -- Cleanup drawings
+    for _, drawing in pairs(self.Drawings) do
+        if drawing then 
+            drawing:Remove() 
+        end
+    end
+    
+    -- Restore metamethod
+    if self.OriginalCFrameIndex then
+        hookmetamethod(game, "__index", self.OriginalCFrameIndex)
+        self.OriginalCFrameIndex = nil
+    end
+    
+    -- Clear tables
+    table.clear(self.Connections)
+    table.clear(self.Instances)
+    table.clear(self.Drawings)
+    table.clear(self.PositionHistory)
+end
+
+function Csync:SetVisuals(enabled)
+    self.Config.Visuals.Enabled = enabled
+    
+    if enabled and self.Enabled then
+        createVisuals()
+    else
+        if self.Instances.desyncVisual then
+            self.Instances.desyncVisual:Destroy()
+            self.Instances.desyncVisual = nil
+        end
+        if self.Instances.imageGui then
+            self.Instances.imageGui:Destroy()
+            self.Instances.imageGui = nil
+        end
+        if self.Drawings.line then
+            self.Drawings.line:Remove()
+            self.Drawings.line = nil
+        end
+        if self.Drawings.lineOutline then
+            self.Drawings.lineOutline:Remove()
+            self.Drawings.lineOutline = nil
+        end
+    end
+end
+
+function Csync:Configure(configTable)
+    for key, value in pairs(configTable) do
+        if self.Config[key] ~= nil then
+            if typeof(self.Config[key]) == "table" then
+                for subKey, subValue in pairs(value) do
+                    if self.Config[key][subKey] ~= nil then
+                        self.Config[key][subKey] = subValue
+                    end
+                end
+            else
+                self.Config[key] = value
+            end
+        end
+    end
+end
+
+-- Private initialization method
+function Csync:_initialize()
+    -- Wait for character
+    playerCharacter = player.Character or player.CharacterAdded:Wait()
+    playerHumanoid = playerCharacter:WaitForChild("Humanoid")
+    playerHumanoidRootPart = playerCharacter:WaitForChild("HumanoidRootPart")
+    playerHumanoidRootPartCFrame = playerHumanoidRootPart.CFrame
+    
+    -- Character added connection
+    self.Connections.characterAdded = player.CharacterAdded:Connect(function(NewCharacter)
         playerCharacter = NewCharacter
         playerHumanoid = playerCharacter:WaitForChild("Humanoid")
         playerHumanoidRootPart = playerCharacter:WaitForChild("HumanoidRootPart")
+        playerHumanoidRootPartCFrame = playerHumanoidRootPart.CFrame
         
-        if CSyncInternal.Enabled then
+        if self.Enabled then
             createVisuals()
         end
     end)
     
-    CSyncInternal.Connections.inputBegan = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    -- Toggle visuals with V key
+    self.Connections.inputBegan = UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if not gameProcessed and input.KeyCode == Enum.KeyCode.V then
-            if CSyncInternal.Enabled then
-                _G.CSync.CsyncStop()
+            self.Config.Visuals.Enabled = not self.Config.Visuals.Enabled
+            
+            if self.Config.Visuals.Enabled then
+                createVisuals()
             else
-                if CSyncInternal.Mode == "World" then
-                    _G.CSync.CsyncWorldPos(CSyncInternal.CurrentPosition.X, CSyncInternal.CurrentPosition.Y, CSyncInternal.CurrentPosition.Z)
-                else
-                    _G.CSync.CsyncPos(CSyncInternal.CurrentPosition.X, CSyncInternal.CurrentPosition.Y, CSyncInternal.CurrentPosition.Z)
+                if self.Instances.desyncVisual then
+                    self.Instances.desyncVisual:Destroy()
+                    self.Instances.desyncVisual = nil
+                end
+                if self.Instances.imageGui then
+                    self.Instances.imageGui:Destroy()
+                    self.Instances.imageGui = nil
+                end
+                if self.Drawings.line then
+                    self.Drawings.line:Remove()
+                    self.Drawings.line = nil
+                end
+                if self.Drawings.lineOutline then
+                    self.Drawings.lineOutline:Remove()
+                    self.Drawings.lineOutline = nil
                 end
             end
         end
     end)
     
-    CSyncInternal.Connections.heartbeat = RunService.Heartbeat:Connect(function(deltaTime)
-        if playerCharacter and playerHumanoidRootPart then
+    -- Heartbeat connection for position updates
+    self.Connections.heartbeat = RunService.Heartbeat:Connect(function(deltaTime)
+        if self.Enabled and playerCharacter and playerHumanoidRootPart then
             playerHumanoidRootPartCFrame = playerHumanoidRootPart.CFrame
             
             local basePosition = getPredictedServerPosition()
             
-            local desyncedPosition
-            if CSyncInternal.Mode == "World" then
-                desyncedPosition = CSyncInternal.CurrentPosition
-            else
-                desyncedPosition = basePosition + CSyncInternal.CurrentPosition
-            end
+            local desyncedPosition = basePosition + Vector3.new(
+                self.Config.Position.X,
+                self.Config.Position.Y,
+                self.Config.Position.Z
+            )
             
-            if CSyncInternal.Instances.desyncVisual then
-                CSyncInternal.Instances.desyncVisual.CFrame = CFrame.new(desyncedPosition) * playerHumanoidRootPart.CFrame.Rotation
+            if self.Instances.desyncVisual then
+                self.Instances.desyncVisual.CFrame = CFrame.new(desyncedPosition) * playerHumanoidRootPart.CFrame.Rotation
             end
             
             playerHumanoidRootPart.CFrame = CFrame.new(desyncedPosition) * playerHumanoidRootPart.CFrame.Rotation
@@ -413,81 +494,33 @@ local function setupConnections()
         end
     end)
     
-    CSyncInternal.Connections.renderStepped = RunService.RenderStepped:Connect(function()
+    -- RenderStepped connection for visuals
+    self.Connections.renderStepped = RunService.RenderStepped:Connect(function()
         updateLines()
         updateImagePosition()
     end)
     
-    CSyncInternal.OriginalCFrameIndex = hookmetamethod(game, "__index", function(Instance, Property)
+    -- Hook CFrame property
+    self.OriginalCFrameIndex = hookmetamethod(game, "__index", function(Instance, Property)
         if playerCharacter and playerHumanoidRootPart and Instance == playerHumanoidRootPart and Property == "CFrame" then
             if not checkcaller() then
                 return playerHumanoidRootPartCFrame
             end
         end
-        return CSyncInternal.OriginalCFrameIndex(Instance, Property)
+        return self.OriginalCFrameIndex(Instance, Property)
     end)
-end
-
-_G.CSync.CsyncWorldPos = function(x, y, z)
-    CSyncInternal.Enabled = true
-    CSyncInternal.Mode = "World"
-    CSyncInternal.CurrentPosition = Vector3.new(x, y, z)
     
-    setupConnections()
-    createVisuals()
-    
-    return true
-end
-
-_G.CSync.CsyncPos = function(x, y, z)
-    CSyncInternal.Enabled = true
-    CSyncInternal.Mode = "Relative"
-    CSyncInternal.CurrentPosition = Vector3.new(x, y, z)
-    
-    setupConnections()
-    createVisuals()
-    
-    return true
-end
-
-_G.CSync.CsyncStop = function()
-    CSyncInternal.Enabled = false
-    cleanup()
-    return true
-end
-
-_G.CSync.GetStatus = function()
-    return {
-        Enabled = CSyncInternal.Enabled,
-        Mode = CSyncInternal.Mode,
-        Position = CSyncInternal.CurrentPosition,
-        Config = CSyncInternal.Config
-    }
-end
-
-_G.CSync.SetConfig = function(newConfig)
-    for key, value in pairs(newConfig) do
-        if CSyncInternal.Config[key] ~= nil then
-            if typeof(value) == "table" then
-                for subKey, subValue in pairs(value) do
-                    if CSyncInternal.Config[key][subKey] ~= nil then
-                        CSyncInternal.Config[key][subKey] = subValue
-                    end
-                end
-            else
-                CSyncInternal.Config[key] = value
-            end
-        end
-    end
-    
-    if CSyncInternal.Enabled then
+    -- Create visuals if enabled
+    if self.Config.Visuals.Enabled then
         createVisuals()
     end
-    
-    print("[CSync] Configuration updated")
-    return true
 end
 
-setupConnections()
+-- Constructor
+local function new()
+    local self = setmetatable({}, Csync)
+    return self
+end
 
-return _G.CSync
+-- Return the module
+return new()
