@@ -1,6 +1,3 @@
--- Csync Module by Arctic
--- Version: 1.0
--- GitHub: https://raw.githubusercontent.com/YourUsername/Repository/main/Csync.lua
 
 local Csync = {}
 Csync.__index = Csync
@@ -66,7 +63,7 @@ Csync.Config = {
 }
 
 -- Module state
-Csync.Enabled = false
+Csync.Enabled = true  -- Always enabled
 Csync.Connections = {}
 Csync.Instances = {}
 Csync.Drawings = {}
@@ -153,7 +150,6 @@ local function createVisuals()
         Csync.Drawings.lineOutline:Remove()
     end
 
-    if not Csync.Enabled then return end
     if not Csync.Config.Visuals.Enabled then return end
 
     local randomNum = math.random(222, 4444)
@@ -276,7 +272,7 @@ local function updateLines()
         visualPosition = Csync.Instances.desyncVisual.Position
     end
     
-    if Csync.Enabled and playerHumanoidRootPart and visualExists then
+    if playerHumanoidRootPart and visualExists then
         local realPos = playerHumanoidRootPart.Position
         
         local realScreenPos, realVisible = Camera:WorldToViewportPoint(realPos)
@@ -317,7 +313,6 @@ local function updateLines()
 end
 
 local function updateImagePosition()
-    if not Csync.Enabled then return end
     if not Csync.Config.Visuals.Enabled then return end
     if not Csync.Instances.imageGui then return end
     if not Csync.Instances.desyncVisual then return end
@@ -330,11 +325,6 @@ end
 
 -- Public methods
 function Csync:WorldPos(x, y, z)
-    if not self.Enabled then
-        self.Enabled = true
-        self:_initialize()
-    end
-    
     self.Config.Position.X = x or 0
     self.Config.Position.Y = y or 0
     self.Config.Position.Z = z or 0
@@ -345,46 +335,16 @@ function Csync:Pos(x, y, z)
 end
 
 function Csync:Stop()
-    self.Enabled = false
-    
-    -- Cleanup connections
-    for _, connection in pairs(self.Connections) do 
-        if connection and typeof(connection) == "RBXScriptConnection" then 
-            connection:Disconnect() 
-        end
-    end
-    
-    -- Cleanup instances
-    for _, instance in pairs(self.Instances) do
-        if instance and instance.Parent then 
-            instance:Destroy() 
-        end
-    end
-    
-    -- Cleanup drawings
-    for _, drawing in pairs(self.Drawings) do
-        if drawing then 
-            drawing:Remove() 
-        end
-    end
-    
-    -- Restore metamethod
-    if self.OriginalCFrameIndex then
-        hookmetamethod(game, "__index", self.OriginalCFrameIndex)
-        self.OriginalCFrameIndex = nil
-    end
-    
-    -- Clear tables
-    table.clear(self.Connections)
-    table.clear(self.Instances)
-    table.clear(self.Drawings)
-    table.clear(self.PositionHistory)
+    -- Reset position to (0, 0, 0) but keep the system running
+    self.Config.Position.X = 0
+    self.Config.Position.Y = 0
+    self.Config.Position.Z = 0
 end
 
 function Csync:SetVisuals(enabled)
     self.Config.Visuals.Enabled = enabled
     
-    if enabled and self.Enabled then
+    if enabled then
         createVisuals()
     else
         if self.Instances.desyncVisual then
@@ -420,6 +380,49 @@ function Csync:Configure(configTable)
             end
         end
     end
+    
+    -- Update visuals if they're enabled
+    if self.Config.Visuals.Enabled then
+        createVisuals()
+    end
+end
+
+function Csync:Cleanup()
+    -- Only use this if you want to completely remove the Csync system
+    Csync.Enabled = false
+    
+    -- Cleanup connections
+    for _, connection in pairs(self.Connections) do 
+        if connection and typeof(connection) == "RBXScriptConnection" then 
+            connection:Disconnect() 
+        end
+    end
+    
+    -- Cleanup instances
+    for _, instance in pairs(self.Instances) do
+        if instance and instance.Parent then 
+            instance:Destroy() 
+        end
+    end
+    
+    -- Cleanup drawings
+    for _, drawing in pairs(self.Drawings) do
+        if drawing then 
+            drawing:Remove() 
+        end
+    end
+    
+    -- Restore metamethod
+    if self.OriginalCFrameIndex then
+        hookmetamethod(game, "__index", self.OriginalCFrameIndex)
+        self.OriginalCFrameIndex = nil
+    end
+    
+    -- Clear tables
+    table.clear(self.Connections)
+    table.clear(self.Instances)
+    table.clear(self.Drawings)
+    table.clear(self.PositionHistory)
 end
 
 -- Private initialization method
@@ -437,7 +440,8 @@ function Csync:_initialize()
         playerHumanoidRootPart = playerCharacter:WaitForChild("HumanoidRootPart")
         playerHumanoidRootPartCFrame = playerHumanoidRootPart.CFrame
         
-        if self.Enabled then
+        -- Recreate visuals if they were enabled
+        if self.Config.Visuals.Enabled then
             createVisuals()
         end
     end)
@@ -472,7 +476,7 @@ function Csync:_initialize()
     
     -- Heartbeat connection for position updates
     self.Connections.heartbeat = RunService.Heartbeat:Connect(function(deltaTime)
-        if self.Enabled and playerCharacter and playerHumanoidRootPart then
+        if playerCharacter and playerHumanoidRootPart then
             playerHumanoidRootPartCFrame = playerHumanoidRootPart.CFrame
             
             local basePosition = getPredictedServerPosition()
@@ -519,6 +523,7 @@ end
 -- Constructor
 local function new()
     local self = setmetatable({}, Csync)
+    self:_initialize()  -- Automatically initialize when created
     return self
 end
 
