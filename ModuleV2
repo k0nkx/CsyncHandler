@@ -1,6 +1,3 @@
--- Csync Module by Arctic
--- Version: 2.1
--- GitHub: https://raw.githubusercontent.com/YourUsername/Repository/main/Csync.lua
 
 local Csync = {}
 Csync.__index = Csync
@@ -13,6 +10,7 @@ Csync.Drawings = {}
 Csync.PositionHistory = {}
 Csync.WorldPositionLock = nil  -- World position lock
 Csync.ToggleKey = Enum.KeyCode.LeftAlt
+Csync.VisualsHidden = false  -- Track if visuals are hidden by Stop()
 
 -- Configuration
 Csync.Config = {
@@ -29,7 +27,7 @@ Csync.Config = {
         HighPingReduction = 0.9
     },
     Visuals = {
-        Enabled = true,  -- Always on
+        Enabled = true,  -- Always on by default
         DesyncColor = Color3.fromRGB(0, 162, 255),
         Transparency = 0,
         ShowLine = true,
@@ -70,6 +68,13 @@ function Csync:WorldPos(x, y, z)
         )
     end
     
+    -- Show visuals if they were hidden by Stop()
+    if self.VisualsHidden then
+        self.VisualsHidden = false
+        self.Config.Visuals.Enabled = true
+        self:showVisuals()
+    end
+    
     if x == 0 and y == 0 and z == 0 then
         -- Clear world position lock
         self.WorldPositionLock = nil
@@ -97,18 +102,32 @@ function Csync:Stop()
     self.Config.Position.X = 0
     self.Config.Position.Y = 0
     self.Config.Position.Z = 0
+    
+    -- Hide visuals
+    self.VisualsHidden = true
+    self.Config.Visuals.Enabled = false
+    self:hideVisuals()
+    
     return self
 end
 
 -- Configuration functions (all return self for chaining)
 function Csync:Toggle(state)
-    -- Only used to toggle visuals visibility now
+    -- Toggle visuals visibility
     if state ~= nil then
         self.Config.Visuals.Enabled = state
+        self.VisualsHidden = not state
     else
         self.Config.Visuals.Enabled = not self.Config.Visuals.Enabled
+        self.VisualsHidden = not self.Config.Visuals.Enabled
     end
-    self:createVisuals()
+    
+    if self.Config.Visuals.Enabled then
+        self:showVisuals()
+    else
+        self:hideVisuals()
+    end
+    
     return self
 end
 
@@ -222,6 +241,56 @@ function Csync:Keybind(key)
     return self
 end
 
+-- Visual management methods
+function Csync:showVisuals()
+    if self.Instances.desyncVisual then
+        self.Instances.desyncVisual.Transparency = self.Config.Visuals.Transparency
+    end
+    
+    if self.Instances.highlight then
+        self.Instances.highlight.Enabled = true
+    end
+    
+    if self.Instances.imageGui then
+        self.Instances.imageGui.Enabled = true
+    end
+    
+    if self.Drawings.line then
+        self.Drawings.line.Visible = true
+    end
+    
+    if self.Drawings.lineOutline then
+        self.Drawings.lineOutline.Visible = true
+    end
+    
+    -- If visuals don't exist, create them
+    if not self.Instances.desyncVisual then
+        self:createVisuals()
+    end
+end
+
+function Csync:hideVisuals()
+    if self.Instances.desyncVisual then
+        self.Instances.desyncVisual.Transparency = 1
+    end
+    
+    if self.Instances.highlight then
+        self.Instances.highlight.Enabled = false
+    end
+    
+    if self.Instances.imageGui then
+        self.Instances.imageGui.Enabled = false
+    end
+    
+    if self.Drawings.line then
+        self.Drawings.line.Visible = false
+    end
+    
+    if self.Drawings.lineOutline then
+        self.Drawings.lineOutline.Visible = false
+    end
+end
+
 -- Main handler methods
 function Csync:Initialize()
     self.RunService = game:GetService("RunService")
@@ -275,6 +344,7 @@ function Csync:Cleanup()
     end
     
     self.WorldPositionLock = nil
+    self.VisualsHidden = false
 end
 
 function Csync:getPing()
@@ -356,7 +426,7 @@ function Csync:createVisuals()
         self.Drawings.lineOutline:Remove()
     end
 
-    if not self.Config.Visuals.Enabled then return end
+    if self.VisualsHidden then return end  -- Don't create if hidden
 
     local randomNum = math.random(222, 4444)
     local visualType = self.Config.Visuals.VisualType
@@ -441,13 +511,13 @@ function Csync:createVisuals()
         lineOutline.Thickness = self.Config.Visuals.Line.OutlineThickness
         lineOutline.Color = self.Config.Visuals.Line.OutlineColor
         lineOutline.Transparency = self.Config.Visuals.Line.OutlineTransparency
-        lineOutline.Visible = self.Config.Visuals.Enabled
+        lineOutline.Visible = not self.VisualsHidden
         
         local line = Drawing.new("Line")
         line.Thickness = self.Config.Visuals.Line.MainThickness
         line.Color = self.Config.Visuals.Line.MainColor
         line.Transparency = self.Config.Visuals.Line.MainTransparency
-        line.Visible = self.Config.Visuals.Enabled
+        line.Visible = not self.VisualsHidden
         
         self.Drawings.lineOutline = lineOutline
         self.Drawings.line = line
@@ -455,7 +525,7 @@ function Csync:createVisuals()
 end
 
 function Csync:updateLines()
-    if not self.Config.Visuals.ShowLine or not self.Config.Visuals.Enabled then 
+    if not self.Config.Visuals.ShowLine or self.VisualsHidden then 
         if self.Drawings.line then
             self.Drawings.line.Visible = false
         end
@@ -519,7 +589,7 @@ function Csync:updateLines()
 end
 
 function Csync:updateImagePosition()
-    if not self.Config.Visuals.Enabled then return end
+    if self.VisualsHidden then return end
     if not self.Instances.imageGui then return end
     if not self.Instances.desyncVisual then return end
     
@@ -536,28 +606,13 @@ function Csync:SetupInputConnection()
     
     self.Connections.inputBegan = self.UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if not gameProcessed and input.KeyCode == self.ToggleKey then
-            -- Only toggle visibility, visuals always exist
             self.Config.Visuals.Enabled = not self.Config.Visuals.Enabled
+            self.VisualsHidden = not self.Config.Visuals.Enabled
             
             if self.Config.Visuals.Enabled then
-                self:createVisuals()
+                self:showVisuals()
             else
-                -- Hide visuals but don't destroy them completely
-                if self.Instances.desyncVisual then
-                    self.Instances.desyncVisual.Transparency = 1
-                end
-                if self.Instances.highlight then
-                    self.Instances.highlight.Enabled = false
-                end
-                if self.Instances.imageGui then
-                    self.Instances.imageGui.Enabled = false
-                end
-                if self.Drawings.line then
-                    self.Drawings.line.Visible = false
-                end
-                if self.Drawings.lineOutline then
-                    self.Drawings.lineOutline.Visible = false
-                end
+                self:hideVisuals()
             end
         end
     end)
