@@ -1,18 +1,15 @@
-
 local Csync = {}
 Csync.__index = Csync
 
--- Module state
-Csync.Enabled = true  -- Always enabled
+Csync.Enabled = true
 Csync.Connections = {}
 Csync.Instances = {}
 Csync.Drawings = {}
 Csync.PositionHistory = {}
-Csync.WorldPositionLock = nil  -- World position lock
+Csync.WorldPositionLock = nil
 Csync.ToggleKey = Enum.KeyCode.LeftAlt
-Csync.VisualsHidden = false  -- Track if visuals are hidden by Stop()
+Csync.VisualsEnabled = true
 
--- Configuration
 Csync.Config = {
     Position = {
         X = 0,
@@ -27,7 +24,6 @@ Csync.Config = {
         HighPingReduction = 0.9
     },
     Visuals = {
-        Enabled = true,  -- Always on by default
         DesyncColor = Color3.fromRGB(0, 162, 255),
         Transparency = 0,
         ShowLine = true,
@@ -57,10 +53,8 @@ Csync.Config = {
     }
 }
 
--- Public API functions
 function Csync:WorldPos(x, y, z)
     if x == nil and y == nil and z == nil then
-        -- Return current position
         return self.WorldPositionLock or Vector3.new(
             self.Config.Position.X,
             self.Config.Position.Y,
@@ -68,26 +62,20 @@ function Csync:WorldPos(x, y, z)
         )
     end
     
-    -- Show visuals if they were hidden by Stop()
-    if self.VisualsHidden then
-        self.VisualsHidden = false
-        self.Config.Visuals.Enabled = true
-        self:showVisuals()
-    end
-    
     if x == 0 and y == 0 and z == 0 then
-        -- Clear world position lock
         self.WorldPositionLock = nil
         self.Config.Position.X = 0
         self.Config.Position.Y = 0
         self.Config.Position.Z = 0
     else
-        -- Set world position lock
         self.WorldPositionLock = Vector3.new(x, y, z)
         self.Config.Position.X = 0
         self.Config.Position.Y = 0
         self.Config.Position.Z = 0
     end
+    
+    self.VisualsEnabled = true
+    self:createVisuals()
     
     return self
 end
@@ -97,33 +85,26 @@ function Csync:Pos(x, y, z)
 end
 
 function Csync:Stop()
-    -- Clear both relative and world position locks
     self.WorldPositionLock = nil
     self.Config.Position.X = 0
     self.Config.Position.Y = 0
     self.Config.Position.Z = 0
     
-    -- Hide visuals
-    self.VisualsHidden = true
-    self.Config.Visuals.Enabled = false
+    self.VisualsEnabled = false
     self:hideVisuals()
     
     return self
 end
 
--- Configuration functions (all return self for chaining)
 function Csync:Toggle(state)
-    -- Toggle visuals visibility
     if state ~= nil then
-        self.Config.Visuals.Enabled = state
-        self.VisualsHidden = not state
+        self.VisualsEnabled = state
     else
-        self.Config.Visuals.Enabled = not self.Config.Visuals.Enabled
-        self.VisualsHidden = not self.Config.Visuals.Enabled
+        self.VisualsEnabled = not self.VisualsEnabled
     end
     
-    if self.Config.Visuals.Enabled then
-        self:showVisuals()
+    if self.VisualsEnabled then
+        self:createVisuals()
     else
         self:hideVisuals()
     end
@@ -138,97 +119,129 @@ end
 
 function Csync:Line(state)
     self.Config.Visuals.ShowLine = state
-    self:createVisuals()
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
     return self
 end
 
 function Csync:LineColor(r, g, b)
     self.Config.Visuals.Line.MainColor = Color3.fromRGB(r, g, b)
-    self:createVisuals()
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
     return self
 end
 
 function Csync:OutlineColor(r, g, b)
     self.Config.Visuals.Line.OutlineColor = Color3.fromRGB(r, g, b)
-    self:createVisuals()
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
     return self
 end
 
 function Csync:LineTrans(value)
     self.Config.Visuals.Line.MainTransparency = math.clamp(value, 0, 1)
-    self:createVisuals()
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
     return self
 end
 
 function Csync:OutlineTrans(value)
     self.Config.Visuals.Line.OutlineTransparency = math.clamp(value, 0, 1)
-    self:createVisuals()
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
     return self
 end
 
 function Csync:VisualType(type)
     self.Config.Visuals.VisualType = type
-    self:createVisuals()
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
     return self
 end
 
 function Csync:SetMesh(meshId)
     self.Config.Visuals.MeshId = meshId
-    self:createVisuals()
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
     return self
 end
 
 function Csync:MeshScale(x, y, z)
     self.Config.Visuals.MeshScale = Vector3.new(x, y, z)
-    self:createVisuals()
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
     return self
 end
 
 function Csync:MeshOffset(x, y, z)
     self.Config.Visuals.MeshOffset = Vector3.new(x, y, z)
-    self:createVisuals()
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
     return self
 end
 
 function Csync:ImageId(textureId)
     self.Config.Visuals.ImageId = textureId
-    self:createVisuals()
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
     return self
 end
 
 function Csync:ImageScale(scale)
     self.Config.Visuals.ImageScale = scale
-    self:createVisuals()
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
     return self
 end
 
 function Csync:Highlight(state)
     self.Config.Visuals.Highlight.Enabled = state
-    self:createVisuals()
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
     return self
 end
 
 function Csync:HighlightFill(r, g, b)
     self.Config.Visuals.Highlight.FillColor = Color3.fromRGB(r, g, b)
-    self:createVisuals()
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
     return self
 end
 
 function Csync:HighlightOutline(r, g, b)
     self.Config.Visuals.Highlight.OutlineColor = Color3.fromRGB(r, g, b)
-    self:createVisuals()
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
     return self
 end
 
 function Csync:HighlightFillTrans(value)
     self.Config.Visuals.Highlight.FillTransparency = math.clamp(value, 0, 1)
-    self:createVisuals()
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
     return self
 end
 
 function Csync:HighlightOutlineTrans(value)
     self.Config.Visuals.Highlight.OutlineTransparency = math.clamp(value, 0, 1)
-    self:createVisuals()
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
     return self
 end
 
@@ -241,57 +254,6 @@ function Csync:Keybind(key)
     return self
 end
 
--- Visual management methods
-function Csync:showVisuals()
-    if self.Instances.desyncVisual then
-        self.Instances.desyncVisual.Transparency = self.Config.Visuals.Transparency
-    end
-    
-    if self.Instances.highlight then
-        self.Instances.highlight.Enabled = true
-    end
-    
-    if self.Instances.imageGui then
-        self.Instances.imageGui.Enabled = true
-    end
-    
-    if self.Drawings.line then
-        self.Drawings.line.Visible = true
-    end
-    
-    if self.Drawings.lineOutline then
-        self.Drawings.lineOutline.Visible = true
-    end
-    
-    -- If visuals don't exist, create them
-    if not self.Instances.desyncVisual then
-        self:createVisuals()
-    end
-end
-
-function Csync:hideVisuals()
-    if self.Instances.desyncVisual then
-        self.Instances.desyncVisual.Transparency = 1
-    end
-    
-    if self.Instances.highlight then
-        self.Instances.highlight.Enabled = false
-    end
-    
-    if self.Instances.imageGui then
-        self.Instances.imageGui.Enabled = false
-    end
-    
-    if self.Drawings.line then
-        self.Drawings.line.Visible = false
-    end
-    
-    if self.Drawings.lineOutline then
-        self.Drawings.lineOutline.Visible = false
-    end
-end
-
--- Main handler methods
 function Csync:Initialize()
     self.RunService = game:GetService("RunService")
     self.Players = game:GetService("Players")
@@ -307,9 +269,6 @@ function Csync:Initialize()
     self.playerHumanoidRootPartCFrame = nil
     
     self:SetupConnections()
-    
-    -- Create visuals immediately (always on)
-    self:createVisuals()
 end
 
 function Csync:Cleanup()
@@ -344,7 +303,24 @@ function Csync:Cleanup()
     end
     
     self.WorldPositionLock = nil
-    self.VisualsHidden = false
+end
+
+function Csync:hideVisuals()
+    if self.Instances.desyncVisual then
+        self.Instances.desyncVisual.Transparency = 1
+    end
+    if self.Instances.highlight then
+        self.Instances.highlight.Enabled = false
+    end
+    if self.Instances.imageGui then
+        self.Instances.imageGui.Enabled = false
+    end
+    if self.Drawings.line then
+        self.Drawings.line.Visible = false
+    end
+    if self.Drawings.lineOutline then
+        self.Drawings.lineOutline.Visible = false
+    end
 end
 
 function Csync:getPing()
@@ -426,7 +402,7 @@ function Csync:createVisuals()
         self.Drawings.lineOutline:Remove()
     end
 
-    if self.VisualsHidden then return end  -- Don't create if hidden
+    if not self.VisualsEnabled then return end
 
     local randomNum = math.random(222, 4444)
     local visualType = self.Config.Visuals.VisualType
@@ -480,6 +456,7 @@ function Csync:createVisuals()
         screenGui.Name = "DesVisUI_" .. randomNum
         screenGui.ResetOnSpawn = false
         screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+        screenGui.Enabled = true
         
         local frame = Instance.new("Frame")
         frame.Name = "ImageContainer"
@@ -511,13 +488,13 @@ function Csync:createVisuals()
         lineOutline.Thickness = self.Config.Visuals.Line.OutlineThickness
         lineOutline.Color = self.Config.Visuals.Line.OutlineColor
         lineOutline.Transparency = self.Config.Visuals.Line.OutlineTransparency
-        lineOutline.Visible = not self.VisualsHidden
+        lineOutline.Visible = true
         
         local line = Drawing.new("Line")
         line.Thickness = self.Config.Visuals.Line.MainThickness
         line.Color = self.Config.Visuals.Line.MainColor
         line.Transparency = self.Config.Visuals.Line.MainTransparency
-        line.Visible = not self.VisualsHidden
+        line.Visible = true
         
         self.Drawings.lineOutline = lineOutline
         self.Drawings.line = line
@@ -525,7 +502,7 @@ function Csync:createVisuals()
 end
 
 function Csync:updateLines()
-    if not self.Config.Visuals.ShowLine or self.VisualsHidden then 
+    if not self.Config.Visuals.ShowLine or not self.VisualsEnabled then 
         if self.Drawings.line then
             self.Drawings.line.Visible = false
         end
@@ -589,7 +566,7 @@ function Csync:updateLines()
 end
 
 function Csync:updateImagePosition()
-    if self.VisualsHidden then return end
+    if not self.VisualsEnabled then return end
     if not self.Instances.imageGui then return end
     if not self.Instances.desyncVisual then return end
     
@@ -606,11 +583,10 @@ function Csync:SetupInputConnection()
     
     self.Connections.inputBegan = self.UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if not gameProcessed and input.KeyCode == self.ToggleKey then
-            self.Config.Visuals.Enabled = not self.Config.Visuals.Enabled
-            self.VisualsHidden = not self.Config.Visuals.Enabled
+            self.VisualsEnabled = not self.VisualsEnabled
             
-            if self.Config.Visuals.Enabled then
-                self:showVisuals()
+            if self.VisualsEnabled then
+                self:createVisuals()
             else
                 self:hideVisuals()
             end
@@ -624,7 +600,7 @@ function Csync:SetupConnections()
         self.playerHumanoid = self.playerCharacter:WaitForChild("Humanoid")
         self.playerHumanoidRootPart = self.playerCharacter:WaitForChild("HumanoidRootPart")
         
-        if self.Config.Visuals.Enabled then
+        if self.VisualsEnabled then
             self:createVisuals()
         end
     end)
@@ -637,19 +613,15 @@ function Csync:SetupConnections()
             
             local basePosition
             if self.WorldPositionLock then
-                -- Use world position lock
                 basePosition = self.WorldPositionLock
             else
-                -- Use relative position
                 basePosition = self:getPredictedServerPosition()
             end
             
             local desyncedPosition
             if self.WorldPositionLock then
-                -- World position lock mode
                 desyncedPosition = self.WorldPositionLock
             else
-                -- Relative position mode
                 desyncedPosition = basePosition + Vector3.new(
                     self.Config.Position.X,
                     self.Config.Position.Y,
@@ -657,7 +629,7 @@ function Csync:SetupConnections()
                 )
             end
             
-            if self.Instances.desyncVisual then
+            if self.Instances.desyncVisual and self.VisualsEnabled then
                 self.Instances.desyncVisual.CFrame = CFrame.new(desyncedPosition) * self.playerHumanoidRootPart.CFrame.Rotation
             end
             
@@ -683,7 +655,6 @@ function Csync:SetupConnections()
     end)
 end
 
--- Create global functions for easy access
 function _G.CsyncPos(x, y, z)
     return Csync:WorldPos(x, y, z)
 end
@@ -764,12 +735,10 @@ function _G.CsyncKeybindSet(key)
     return Csync:Keybind(key)
 end
 
--- Cleanup any existing instance
 if _G.CsyncHandler then
     _G.CsyncHandler:Cleanup()
 end
 
--- Initialize and export
 _G.CsyncHandler = Csync
 Csync:Initialize()
 
