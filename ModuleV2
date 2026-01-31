@@ -523,102 +523,314 @@ function Csync:createOffscreenIndicator()
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screenGui.Enabled = true
     
-    local imageLabel = Instance.new("ImageLabel")
-    imageLabel.Name = "OffscreenImage"
-    imageLabel.Size = UDim2.new(0, 50 * self.Config.Visuals.ImageScale, 0, 50 * self.Config.Visuals.ImageScale)
-    imageLabel.BackgroundTransparency = 0
-    imageLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    imageLabel.Image = self.Config.Visuals.ImageId
-    imageLabel.ScaleType = Enum.ScaleType.Fit
-    imageLabel.Visible = false
-    imageLabel.Parent = screenGui
+    local mainContainer = Instance.new("Frame")
+    mainContainer.Name = "MainContainer"
+    mainContainer.Size = UDim2.new(1, 0, 1, 0)
+    mainContainer.BackgroundTransparency = 1
+    mainContainer.Visible = false
+    mainContainer.Parent = screenGui
+    
+    local screenSize = self.Camera.ViewportSize
+    local edgeThickness = 3
+    
+    local topEdge = Instance.new("Frame")
+    topEdge.Name = "TopEdge"
+    topEdge.Size = UDim2.new(1, 0, 0, edgeThickness)
+    topEdge.Position = UDim2.new(0, 0, 0, 0)
+    topEdge.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    topEdge.BackgroundTransparency = 0
+    topEdge.BorderSizePixel = 0
+    topEdge.Visible = false
+    topEdge.Parent = mainContainer
+    
+    local bottomEdge = Instance.new("Frame")
+    bottomEdge.Name = "BottomEdge"
+    bottomEdge.Size = UDim2.new(1, 0, 0, edgeThickness)
+    bottomEdge.Position = UDim2.new(0, 0, 1, -edgeThickness)
+    bottomEdge.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    bottomEdge.BackgroundTransparency = 0
+    bottomEdge.BorderSizePixel = 0
+    bottomEdge.Visible = false
+    bottomEdge.Parent = mainContainer
+    
+    local leftEdge = Instance.new("Frame")
+    leftEdge.Name = "LeftEdge"
+    leftEdge.Size = UDim2.new(0, edgeThickness, 1, 0)
+    leftEdge.Position = UDim2.new(0, 0, 0, 0)
+    leftEdge.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    leftEdge.BackgroundTransparency = 0
+    leftEdge.BorderSizePixel = 0
+    leftEdge.Visible = false
+    leftEdge.Parent = mainContainer
+    
+    local rightEdge = Instance.new("Frame")
+    rightEdge.Name = "RightEdge"
+    rightEdge.Size = UDim2.new(0, edgeThickness, 1, 0)
+    rightEdge.Position = UDim2.new(1, -edgeThickness, 0, 0)
+    rightEdge.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    rightEdge.BackgroundTransparency = 0
+    rightEdge.BorderSizePixel = 0
+    rightEdge.Visible = false
+    rightEdge.Parent = mainContainer
+    
+    local cornerSize = 50
+    local cornerContainer = Instance.new("Frame")
+    cornerContainer.Name = "CornerContainer"
+    cornerContainer.Size = UDim2.new(1, 0, 1, 0)
+    cornerContainer.BackgroundTransparency = 1
+    cornerContainer.Parent = mainContainer
+    
+    local topLeftCorner = Instance.new("ImageLabel")
+    topLeftCorner.Name = "TopLeftCorner"
+    topLeftCorner.Size = UDim2.new(0, cornerSize, 0, cornerSize)
+    topLeftCorner.Position = UDim2.new(0, 10, 0, 10)
+    topLeftCorner.BackgroundTransparency = 1
+    topLeftCorner.Image = self.Config.Visuals.ImageId
+    topLeftCorner.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    topLeftCorner.ScaleType = Enum.ScaleType.Fit
+    topLeftCorner.Visible = false
+    topLeftCorner.Parent = cornerContainer
+    
+    local topRightCorner = Instance.new("ImageLabel")
+    topRightCorner.Name = "TopRightCorner"
+    topRightCorner.Size = UDim2.new(0, cornerSize, 0, cornerSize)
+    topRightCorner.Position = UDim2.new(1, -cornerSize - 10, 0, 10)
+    topRightCorner.BackgroundTransparency = 1
+    topRightCorner.Image = self.Config.Visuals.ImageId
+    topRightCorner.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    topRightCorner.ScaleType = Enum.ScaleType.Fit
+    topRightCorner.Visible = false
+    topRightCorner.Parent = cornerContainer
+    
+    local bottomLeftCorner = Instance.new("ImageLabel")
+    bottomLeftCorner.Name = "BottomLeftCorner"
+    bottomLeftCorner.Size = UDim2.new(0, cornerSize, 0, cornerSize)
+    bottomLeftCorner.Position = UDim2.new(0, 10, 1, -cornerSize - 10)
+    bottomLeftCorner.BackgroundTransparency = 1
+    bottomLeftCorner.Image = self.Config.Visuals.ImageId
+    bottomLeftCorner.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    bottomLeftCorner.ScaleType = Enum.ScaleType.Fit
+    bottomLeftCorner.Visible = false
+    bottomLeftCorner.Parent = cornerContainer
+    
+    local bottomRightCorner = Instance.new("ImageLabel")
+    bottomRightCorner.Name = "BottomRightCorner"
+    bottomRightCorner.Size = UDim2.new(0, cornerSize, 0, cornerSize)
+    bottomRightCorner.Position = UDim2.new(1, -cornerSize - 10, 1, -cornerSize - 10)
+    bottomRightCorner.BackgroundTransparency = 1
+    bottomRightCorner.Image = self.Config.Visuals.ImageId
+    bottomRightCorner.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    bottomRightCorner.ScaleType = Enum.ScaleType.Fit
+    bottomRightCorner.Visible = false
+    bottomRightCorner.Parent = cornerContainer
     
     screenGui.Parent = self.CoreGui
     
     self.Instances.offscreenGui = screenGui
-    self.Instances.offscreenImage = imageLabel
-end
-
-function Csync:calculateScreenEdgePosition(worldPos)
-    local screenSize = self.Camera.ViewportSize
-    local screenPoint = self.Camera:WorldToViewportPoint(worldPos)
-    
-    if screenPoint.Z > 0 then
-        return Vector2.new(screenPoint.X, screenPoint.Y), true
-    end
-    
-    local cameraPos = self.Camera.CFrame.Position
-    local cameraLook = self.Camera.CFrame.LookVector
-    local toTarget = (worldPos - cameraPos).Unit
-    
-    local dot = cameraLook:Dot(toTarget)
-    
-    if dot <= 0 then
-        local screenCenter = Vector2.new(screenSize.X/2, screenSize.Y/2)
-        local randomAngle = math.random() * math.pi * 2
-        local edgeX = screenCenter.X + math.cos(randomAngle) * (screenSize.X/2 - 50)
-        local edgeY = screenCenter.Y + math.sin(randomAngle) * (screenSize.Y/2 - 50)
-        return Vector2.new(edgeX, edgeY), false
-    end
-    
-    local viewportPoint = self.Camera:WorldToViewportPoint(worldPos)
-    
-    local x = viewportPoint.X
-    local y = viewportPoint.Y
-    
-    local edgeX, edgeY
-    
-    if x < 0 then
-        edgeX = 50
-        edgeY = math.clamp(y, 50, screenSize.Y - 50)
-    elseif x > screenSize.X then
-        edgeX = screenSize.X - 50
-        edgeY = math.clamp(y, 50, screenSize.Y - 50)
-    elseif y < 0 then
-        edgeX = math.clamp(x, 50, screenSize.X - 50)
-        edgeY = 50
-    elseif y > screenSize.Y then
-        edgeX = math.clamp(x, 50, screenSize.X - 50)
-        edgeY = screenSize.Y - 50
-    else
-        local angle = math.atan2(y - screenSize.Y/2, x - screenSize.X/2)
-        edgeX = screenSize.X/2 + (screenSize.X/2 - 50) * math.cos(angle)
-        edgeY = screenSize.Y/2 + (screenSize.Y/2 - 50) * math.sin(angle)
-    end
-    
-    edgeX = math.clamp(edgeX, 50, screenSize.X - 50)
-    edgeY = math.clamp(edgeY, 50, screenSize.Y - 50)
-    
-    return Vector2.new(edgeX, edgeY), false
+    self.Instances.mainContainer = mainContainer
+    self.Instances.topEdge = topEdge
+    self.Instances.bottomEdge = bottomEdge
+    self.Instances.leftEdge = leftEdge
+    self.Instances.rightEdge = rightEdge
+    self.Instances.cornerContainer = cornerContainer
+    self.Instances.topLeftCorner = topLeftCorner
+    self.Instances.topRightCorner = topRightCorner
+    self.Instances.bottomLeftCorner = bottomLeftCorner
+    self.Instances.bottomRightCorner = bottomRightCorner
 end
 
 function Csync:updateOffscreenIndicator()
-    if not self.VisualsEnabled then return end
-    if not self.Instances.offscreenImage then return end
+    if not self.VisualsEnabled then 
+        if self.Instances.mainContainer then
+            self.Instances.mainContainer.Visible = false
+        end
+        return 
+    end
     if not self.Instances.desyncVisual then return end
     
     local desyncPos = self.Instances.desyncVisual.Position
-    local screenEdgePos, isOnScreen = self:calculateScreenEdgePosition(desyncPos)
     local screenPoint = self.Camera:WorldToViewportPoint(desyncPos)
     
-    local image = self.Instances.offscreenImage
-    
-    if isOnScreen and screenPoint.Z > 0 then
-        image.Visible = false
+    if screenPoint.Z > 0 and 
+       screenPoint.X >= 0 and screenPoint.X <= self.Camera.ViewportSize.X and
+       screenPoint.Y >= 0 and screenPoint.Y <= self.Camera.ViewportSize.Y then
+        
+        if self.Instances.mainContainer then
+            self.Instances.mainContainer.Visible = false
+        end
         return
     end
     
-    image.Visible = true
+    if not self.Instances.mainContainer then return end
+    
+    self.Instances.mainContainer.Visible = true
     
     local screenSize = self.Camera.ViewportSize
-    local center = Vector2.new(screenSize.X/2, screenSize.Y/2)
+    local x, y = screenPoint.X, screenPoint.Y
     
-    local angle = math.atan2(screenEdgePos.Y - center.Y, screenEdgePos.X - center.X)
-    local rotationDegrees = math.deg(angle) + 90
+    local leftDist = x
+    local rightDist = screenSize.X - x
+    local topDist = y
+    local bottomDist = screenSize.Y - y
     
-    image.Position = UDim2.new(0, screenEdgePos.X, 0, screenEdgePos.Y)
-    image.AnchorPoint = Vector2.new(0.5, 0.5)
-    image.Rotation = rotationDegrees
+    local isLeft = x < 0
+    local isRight = x > screenSize.X
+    local isTop = y < 0
+    local isBottom = y > screenSize.Y
+    
+    local isBehind = screenPoint.Z <= 0
+    
+    local edgeThickness = 3
+    local visibleColor = Color3.fromRGB(255, 255, 255)
+    
+    if isBehind then
+        local posX = screenSize.X/2
+        local posY = screenSize.Y/2
+        
+        local dx = posX - screenSize.X/2
+        local dy = posY - screenSize.Y/2
+        local distance = math.sqrt(dx*dx + dy*dy)
+        
+        local maxDist = math.min(screenSize.X, screenSize.Y) * 0.45
+        
+        if distance > 0 then
+            posX = screenSize.X/2 + dx/distance * maxDist
+            posY = screenSize.Y/2 + dy/distance * maxDist
+        end
+        
+        local edge = self:getClosestEdge(posX, posY)
+        
+        self.Instances.topEdge.Visible = (edge == "top")
+        self.Instances.bottomEdge.Visible = (edge == "bottom")
+        self.Instances.leftEdge.Visible = (edge == "left")
+        self.Instances.rightEdge.Visible = (edge == "right")
+        
+        if edge == "top" then
+            local t = math.clamp(posX / screenSize.X, 0, 1)
+            local edgeLength = screenSize.X * 0.4
+            local edgePos = screenSize.X * 0.5 - edgeLength/2
+            self.Instances.topEdge.Size = UDim2.new(0, edgeLength, 0, edgeThickness)
+            self.Instances.topEdge.Position = UDim2.new(0, edgePos, 0, 5)
+        elseif edge == "bottom" then
+            local t = math.clamp(posX / screenSize.X, 0, 1)
+            local edgeLength = screenSize.X * 0.4
+            local edgePos = screenSize.X * 0.5 - edgeLength/2
+            self.Instances.bottomEdge.Size = UDim2.new(0, edgeLength, 0, edgeThickness)
+            self.Instances.bottomEdge.Position = UDim2.new(0, edgePos, 1, -edgeThickness - 5)
+        elseif edge == "left" then
+            local t = math.clamp(posY / screenSize.Y, 0, 1)
+            local edgeLength = screenSize.Y * 0.4
+            local edgePos = screenSize.Y * 0.5 - edgeLength/2
+            self.Instances.leftEdge.Size = UDim2.new(0, edgeThickness, 0, edgeLength)
+            self.Instances.leftEdge.Position = UDim2.new(0, 5, 0, edgePos)
+        elseif edge == "right" then
+            local t = math.clamp(posY / screenSize.Y, 0, 1)
+            local edgeLength = screenSize.Y * 0.4
+            local edgePos = screenSize.Y * 0.5 - edgeLength/2
+            self.Instances.rightEdge.Size = UDim2.new(0, edgeThickness, 0, edgeLength)
+            self.Instances.rightEdge.Position = UDim2.new(1, -edgeThickness - 5, 0, edgePos)
+        end
+        
+        self.Instances.topLeftCorner.Visible = false
+        self.Instances.topRightCorner.Visible = false
+        self.Instances.bottomLeftCorner.Visible = false
+        self.Instances.bottomRightCorner.Visible = false
+        
+    else
+        local cornerRadius = 50
+        
+        local showTop = isTop
+        local showBottom = isBottom
+        local showLeft = isLeft
+        local showRight = isRight
+        
+        local showCorner = false
+        
+        if showTop and showLeft then
+            self.Instances.topLeftCorner.Visible = true
+            self.Instances.topLeftCorner.Rotation = 0
+            showCorner = true
+        else
+            self.Instances.topLeftCorner.Visible = false
+        end
+        
+        if showTop and showRight then
+            self.Instances.topRightCorner.Visible = true
+            self.Instances.topRightCorner.Rotation = 90
+            showCorner = true
+        else
+            self.Instances.topRightCorner.Visible = false
+        end
+        
+        if showBottom and showLeft then
+            self.Instances.bottomLeftCorner.Visible = true
+            self.Instances.bottomLeftCorner.Rotation = 270
+            showCorner = true
+        else
+            self.Instances.bottomLeftCorner.Visible = false
+        end
+        
+        if showBottom and showRight then
+            self.Instances.bottomRightCorner.Visible = true
+            self.Instances.bottomRightCorner.Rotation = 180
+            showCorner = true
+        else
+            self.Instances.bottomRightCorner.Visible = false
+        end
+        
+        if showCorner then
+            self.Instances.topEdge.Visible = false
+            self.Instances.bottomEdge.Visible = false
+            self.Instances.leftEdge.Visible = false
+            self.Instances.rightEdge.Visible = false
+        else
+            local edgeLength = screenSize.X * 0.3
+            
+            self.Instances.topEdge.Visible = showTop
+            if showTop then
+                local clampedX = math.clamp(x, edgeLength/2, screenSize.X - edgeLength/2)
+                self.Instances.topEdge.Size = UDim2.new(0, edgeLength, 0, edgeThickness)
+                self.Instances.topEdge.Position = UDim2.new(0, clampedX - edgeLength/2, 0, 5)
+            end
+            
+            self.Instances.bottomEdge.Visible = showBottom
+            if showBottom then
+                local clampedX = math.clamp(x, edgeLength/2, screenSize.X - edgeLength/2)
+                self.Instances.bottomEdge.Size = UDim2.new(0, edgeLength, 0, edgeThickness)
+                self.Instances.bottomEdge.Position = UDim2.new(0, clampedX - edgeLength/2, 1, -edgeThickness - 5)
+            end
+            
+            self.Instances.leftEdge.Visible = showLeft
+            if showLeft then
+                local clampedY = math.clamp(y, edgeLength/2, screenSize.Y - edgeLength/2)
+                self.Instances.leftEdge.Size = UDim2.new(0, edgeThickness, 0, edgeLength)
+                self.Instances.leftEdge.Position = UDim2.new(0, 5, 0, clampedY - edgeLength/2)
+            end
+            
+            self.Instances.rightEdge.Visible = showRight
+            if showRight then
+                local clampedY = math.clamp(y, edgeLength/2, screenSize.Y - edgeLength/2)
+                self.Instances.rightEdge.Size = UDim2.new(0, edgeThickness, 0, edgeLength)
+                self.Instances.rightEdge.Position = UDim2.new(1, -edgeThickness - 5, 0, clampedY - edgeLength/2)
+            end
+        end
+    end
+end
+
+function Csync:getClosestEdge(x, y)
+    local screenSize = self.Camera.ViewportSize
+    
+    local distToLeft = x
+    local distToRight = screenSize.X - x
+    local distToTop = y
+    local distToBottom = screenSize.Y - y
+    
+    local minDist = math.min(distToLeft, distToRight, distToTop, distToBottom)
+    
+    if minDist == distToLeft then return "left" end
+    if minDist == distToRight then return "right" end
+    if minDist == distToTop then return "top" end
+    return "bottom"
 end
 
 function Csync:updateLines()
