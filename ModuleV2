@@ -705,7 +705,7 @@ function Csync:updateOffscreenIndicator()
         self.Instances.leftEdge.Visible = (edge == "left")
         self.Instances.rightEdge.Visible = (edge == "right")
         
-        local edgeLengthPercent = 0.4
+        local edgeLengthPercent = 0.04
         
         if edge == "top" then
             local edgeLength = screenSize.X * edgeLengthPercent
