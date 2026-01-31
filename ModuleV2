@@ -705,12 +705,12 @@ function Csync:updateOffscreenIndicator()
         self.Instances.leftEdge.Visible = (edge == "left")
         self.Instances.rightEdge.Visible = (edge == "right")
         
-        local edgeLengthPercent = 0.04
+        local edgeLengthPercent = 0.2
         
         if edge == "top" then
             local edgeLength = screenSize.X * edgeLengthPercent
             self.Instances.topEdge.Size = UDim2.new(0, edgeLength, 0, edgeThickness)
-            self.Instances.topEdge.Position = UDim2.new(0, screenSize.X/2 - edgeLength/2, 0, 5)
+            self.Instances.topEdge.Position = UDim2.new(0, screenSize.X/2 - edgeLength/2, 0, 2)
         elseif edge == "bottom" then
             local edgeLength = screenSize.X * edgeLengthPercent
             self.Instances.bottomEdge.Size = UDim2.new(0, edgeLength, 0, edgeThickness)
@@ -718,11 +718,11 @@ function Csync:updateOffscreenIndicator()
         elseif edge == "left" then
             local edgeLength = screenSize.Y * edgeLengthPercent
             self.Instances.leftEdge.Size = UDim2.new(0, edgeThickness, 0, edgeLength)
-            self.Instances.leftEdge.Position = UDim2.new(0, 5, 0, screenSize.Y/2 - edgeLength/2)
+            self.Instances.leftEdge.Position = UDim2.new(0, 2, 0, screenSize.Y/2 - edgeLength/2)
         elseif edge == "right" then
             local edgeLength = screenSize.Y * edgeLengthPercent
             self.Instances.rightEdge.Size = UDim2.new(0, edgeThickness, 0, edgeLength)
-            self.Instances.rightEdge.Position = UDim2.new(1, -edgeThickness - 5, 0, screenSize.Y/2 - edgeLength/2)
+            self.Instances.rightEdge.Position = UDim2.new(1, -edgeThickness - 2, 0, screenSize.Y/2 - edgeLength/2)
         end
         
         self.Instances.topLeftCorner.Visible = false
