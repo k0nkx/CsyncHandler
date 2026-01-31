@@ -526,7 +526,8 @@ function Csync:createOffscreenIndicator()
     local imageLabel = Instance.new("ImageLabel")
     imageLabel.Name = "OffscreenImage"
     imageLabel.Size = UDim2.new(0, 50 * self.Config.Visuals.ImageScale, 0, 50 * self.Config.Visuals.ImageScale)
-    imageLabel.BackgroundTransparency = 1
+    imageLabel.BackgroundTransparency = 0
+    imageLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     imageLabel.Image = self.Config.Visuals.ImageId
     imageLabel.ScaleType = Enum.ScaleType.Fit
     imageLabel.Visible = false
@@ -538,43 +539,86 @@ function Csync:createOffscreenIndicator()
     self.Instances.offscreenImage = imageLabel
 end
 
+function Csync:calculateScreenEdgePosition(worldPos)
+    local screenSize = self.Camera.ViewportSize
+    local screenPoint = self.Camera:WorldToViewportPoint(worldPos)
+    
+    if screenPoint.Z > 0 then
+        return Vector2.new(screenPoint.X, screenPoint.Y), true
+    end
+    
+    local cameraPos = self.Camera.CFrame.Position
+    local cameraLook = self.Camera.CFrame.LookVector
+    local toTarget = (worldPos - cameraPos).Unit
+    
+    local dot = cameraLook:Dot(toTarget)
+    
+    if dot <= 0 then
+        local screenCenter = Vector2.new(screenSize.X/2, screenSize.Y/2)
+        local randomAngle = math.random() * math.pi * 2
+        local edgeX = screenCenter.X + math.cos(randomAngle) * (screenSize.X/2 - 50)
+        local edgeY = screenCenter.Y + math.sin(randomAngle) * (screenSize.Y/2 - 50)
+        return Vector2.new(edgeX, edgeY), false
+    end
+    
+    local viewportPoint = self.Camera:WorldToViewportPoint(worldPos)
+    
+    local x = viewportPoint.X
+    local y = viewportPoint.Y
+    
+    local edgeX, edgeY
+    
+    if x < 0 then
+        edgeX = 50
+        edgeY = math.clamp(y, 50, screenSize.Y - 50)
+    elseif x > screenSize.X then
+        edgeX = screenSize.X - 50
+        edgeY = math.clamp(y, 50, screenSize.Y - 50)
+    elseif y < 0 then
+        edgeX = math.clamp(x, 50, screenSize.X - 50)
+        edgeY = 50
+    elseif y > screenSize.Y then
+        edgeX = math.clamp(x, 50, screenSize.X - 50)
+        edgeY = screenSize.Y - 50
+    else
+        local angle = math.atan2(y - screenSize.Y/2, x - screenSize.X/2)
+        edgeX = screenSize.X/2 + (screenSize.X/2 - 50) * math.cos(angle)
+        edgeY = screenSize.Y/2 + (screenSize.Y/2 - 50) * math.sin(angle)
+    end
+    
+    edgeX = math.clamp(edgeX, 50, screenSize.X - 50)
+    edgeY = math.clamp(edgeY, 50, screenSize.Y - 50)
+    
+    return Vector2.new(edgeX, edgeY), false
+end
+
 function Csync:updateOffscreenIndicator()
     if not self.VisualsEnabled then return end
     if not self.Instances.offscreenImage then return end
     if not self.Instances.desyncVisual then return end
     
     local desyncPos = self.Instances.desyncVisual.Position
+    local screenEdgePos, isOnScreen = self:calculateScreenEdgePosition(desyncPos)
     local screenPoint = self.Camera:WorldToViewportPoint(desyncPos)
-    
-    local screenSize = self.Camera.ViewportSize
-    local margin = 50
     
     local image = self.Instances.offscreenImage
     
-    if screenPoint.Z > 0 then
+    if isOnScreen and screenPoint.Z > 0 then
         image.Visible = false
         return
     end
     
     image.Visible = true
     
-    local x, y = screenPoint.X, screenPoint.Y
+    local screenSize = self.Camera.ViewportSize
+    local center = Vector2.new(screenSize.X/2, screenSize.Y/2)
     
-    local angle = math.atan2(y - screenSize.Y/2, x - screenSize.X/2)
+    local angle = math.atan2(screenEdgePos.Y - center.Y, screenEdgePos.X - center.X)
+    local rotationDegrees = math.deg(angle) + 90
     
-    local screenX = screenSize.X/2 + (screenSize.X/2 - margin) * math.cos(angle)
-    local screenY = screenSize.Y/2 + (screenSize.Y/2 - margin) * math.sin(angle)
-    
-    if screenX < margin then screenX = margin end
-    if screenX > screenSize.X - margin then screenX = screenSize.X - margin end
-    if screenY < margin then screenY = margin end
-    if screenY > screenSize.Y - margin then screenY = screenSize.Y - margin end
-    
-    image.Position = UDim2.new(0, screenX, 0, screenY)
+    image.Position = UDim2.new(0, screenEdgePos.X, 0, screenEdgePos.Y)
     image.AnchorPoint = Vector2.new(0.5, 0.5)
-    
-    local rotationDegrees = math.deg(angle)
-    image.Rotation = rotationDegrees + 90
+    image.Rotation = rotationDegrees
 end
 
 function Csync:updateLines()
