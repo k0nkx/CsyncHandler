@@ -1,6 +1,3 @@
--- Csync Module by Arctic
--- Version: 2.0
--- GitHub: https://raw.githubusercontent.com/YourUsername/Repository/main/Csync.lua
 
 local Csync = {}
 Csync.__index = Csync
