@@ -1,3 +1,644 @@
+local Csync = {}
+Csync.__index = Csync
+
+Csync.Enabled = true
+Csync.Connections = {}
+Csync.Instances = {}
+Csync.Drawings = {}
+Csync.PositionHistory = {}
+Csync.WorldPositionLock = nil
+Csync.ToggleKey = Enum.KeyCode.LeftAlt
+Csync.VisualsEnabled = true
+
+Csync.Config = {
+    Position = {
+        X = 0,
+        Y = 0,
+        Z = 0
+    },
+    UseServerPrediction = true,
+    ServerPrediction = {
+        HistoryDuration = 2,
+        MaxPing = 300,
+        HighPingThreshold = 160,
+        HighPingReduction = 0.9
+    },
+    Visuals = {
+        DesyncColor = Color3.fromRGB(0, 162, 255),
+        Transparency = 0,
+        ShowLine = true,
+        Line = {
+            MainColor = Color3.fromRGB(255, 255, 255),
+            OutlineColor = Color3.fromRGB(0, 0, 0),
+            MainThickness = 2,
+            OutlineThickness = 3,
+            MainTransparency = 0,
+            OutlineTransparency = 0,
+            Extension = 1
+        },
+        VisualType = "Both",
+        MeshId = "rbxassetid://14123716423",
+        MeshScale = Vector3.new(0.1, 0.1, 0.1),
+        MeshOffset = Vector3.new(0, -0.8, 0),
+        ImageId = "rbxassetid://94277058488615",
+        ImageScale = 0.38,
+        Highlight = {
+            Enabled = true,
+            FillColor = Color3.fromRGB(245, 173, 255),
+            OutlineColor = Color3.fromRGB(255, 255, 255),
+            FillTransparency = 0.7,
+            OutlineTransparency = 0.5,
+            DepthMode = "AlwaysOnTop"
+        }
+    }
+}
+
+function Csync:WorldPos(x, y, z)
+    if x == nil and y == nil and z == nil then
+        return self.WorldPositionLock or Vector3.new(
+            self.Config.Position.X,
+            self.Config.Position.Y,
+            self.Config.Position.Z
+        )
+    end
+    
+    if x == 0 and y == 0 and z == 0 then
+        self.WorldPositionLock = nil
+        self.Config.Position.X = 0
+        self.Config.Position.Y = 0
+        self.Config.Position.Z = 0
+    else
+        self.WorldPositionLock = Vector3.new(x, y, z)
+        self.Config.Position.X = 0
+        self.Config.Position.Y = 0
+        self.Config.Position.Z = 0
+    end
+    
+    self.VisualsEnabled = true
+    self:createVisuals()
+    
+    return self
+end
+
+function Csync:Pos(x, y, z)
+    return self:WorldPos(x, y, z)
+end
+
+function Csync:Stop()
+    self.WorldPositionLock = nil
+    self.Config.Position.X = 0
+    self.Config.Position.Y = 0
+    self.Config.Position.Z = 0
+    
+    self.VisualsEnabled = false
+    self:hideVisuals()
+    
+    return self
+end
+
+function Csync:Toggle(state)
+    if state ~= nil then
+        self.VisualsEnabled = state
+    else
+        self.VisualsEnabled = not self.VisualsEnabled
+    end
+    
+    if self.VisualsEnabled then
+        self:createVisuals()
+    else
+        self:hideVisuals()
+    end
+    
+    return self
+end
+
+function Csync:ServPred(state)
+    self.Config.UseServerPrediction = state
+    return self
+end
+
+function Csync:Line(state)
+    self.Config.Visuals.ShowLine = state
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
+    return self
+end
+
+function Csync:LineColor(r, g, b)
+    self.Config.Visuals.Line.MainColor = Color3.fromRGB(r, g, b)
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
+    return self
+end
+
+function Csync:OutlineColor(r, g, b)
+    self.Config.Visuals.Line.OutlineColor = Color3.fromRGB(r, g, b)
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
+    return self
+end
+
+function Csync:LineTrans(value)
+    self.Config.Visuals.Line.MainTransparency = math.clamp(value, 0, 1)
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
+    return self
+end
+
+function Csync:OutlineTrans(value)
+    self.Config.Visuals.Line.OutlineTransparency = math.clamp(value, 0, 1)
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
+    return self
+end
+
+function Csync:VisualType(type)
+    self.Config.Visuals.VisualType = type
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
+    return self
+end
+
+function Csync:SetMesh(meshId)
+    self.Config.Visuals.MeshId = meshId
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
+    return self
+end
+
+function Csync:MeshScale(x, y, z)
+    self.Config.Visuals.MeshScale = Vector3.new(x, y, z)
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
+    return self
+end
+
+function Csync:MeshOffset(x, y, z)
+    self.Config.Visuals.MeshOffset = Vector3.new(x, y, z)
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
+    return self
+end
+
+function Csync:ImageId(textureId)
+    self.Config.Visuals.ImageId = textureId
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
+    return self
+end
+
+function Csync:ImageScale(scale)
+    self.Config.Visuals.ImageScale = scale
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
+    return self
+end
+
+function Csync:Highlight(state)
+    self.Config.Visuals.Highlight.Enabled = state
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
+    return self
+end
+
+function Csync:HighlightFill(r, g, b)
+    self.Config.Visuals.Highlight.FillColor = Color3.fromRGB(r, g, b)
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
+    return self
+end
+
+function Csync:HighlightOutline(r, g, b)
+    self.Config.Visuals.Highlight.OutlineColor = Color3.fromRGB(r, g, b)
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
+    return self
+end
+
+function Csync:HighlightFillTrans(value)
+    self.Config.Visuals.Highlight.FillTransparency = math.clamp(value, 0, 1)
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
+    return self
+end
+
+function Csync:HighlightOutlineTrans(value)
+    self.Config.Visuals.Highlight.OutlineTransparency = math.clamp(value, 0, 1)
+    if self.VisualsEnabled then
+        self:createVisuals()
+    end
+    return self
+end
+
+function Csync:Keybind(key)
+    if typeof(key) == "string" then
+        key = Enum.KeyCode[key:upper()]
+    end
+    self.ToggleKey = key
+    self:SetupInputConnection()
+    return self
+end
+
+function Csync:Initialize()
+    self.RunService = game:GetService("RunService")
+    self.Players = game:GetService("Players")
+    self.UserInputService = game:GetService("UserInputService")
+    self.Camera = workspace.CurrentCamera
+    self.CoreGui = game:GetService("CoreGui")
+    self.Stats = game:GetService("Stats")
+    
+    self.player = self.Players.LocalPlayer
+    self.playerCharacter = self.player.Character or self.player.CharacterAdded:Wait()
+    self.playerHumanoid = self.playerCharacter:WaitForChild("Humanoid")
+    self.playerHumanoidRootPart = self.playerCharacter:WaitForChild("HumanoidRootPart")
+    self.playerHumanoidRootPartCFrame = nil
+    
+    self:SetupConnections()
+end
+
+function Csync:Cleanup()
+    self.Enabled = false
+    
+    for _, connection in pairs(self.Connections) do 
+        if connection and typeof(connection) == "RBXScriptConnection" then 
+            connection:Disconnect() 
+        end
+    end
+    
+    for _, instance in pairs(self.Instances) do
+        if instance and instance.Parent then 
+            instance:Destroy() 
+        end
+    end
+    
+    for _, drawing in pairs(self.Drawings) do
+        if drawing then 
+            drawing:Remove() 
+        end
+    end
+    
+    table.clear(self.Connections)
+    table.clear(self.Instances)
+    table.clear(self.Drawings)
+    table.clear(self.PositionHistory)
+    
+    if self.OriginalCFrameIndex then
+        hookmetamethod(game, "__index", self.OriginalCFrameIndex)
+        self.OriginalCFrameIndex = nil
+    end
+    
+    self.WorldPositionLock = nil
+end
+
+function Csync:hideVisuals()
+    if self.Instances.desyncVisual then
+        self.Instances.desyncVisual.Transparency = 1
+    end
+    if self.Instances.highlight then
+        self.Instances.highlight.Enabled = false
+    end
+    if self.Instances.imageGui then
+        self.Instances.imageGui.Enabled = false
+    end
+    if self.Instances.offscreenGui then
+        self.Instances.offscreenGui.Enabled = false
+    end
+    if self.Drawings.line then
+        self.Drawings.line.Visible = false
+    end
+    if self.Drawings.lineOutline then
+        self.Drawings.lineOutline.Visible = false
+    end
+end
+
+function Csync:getPing()
+    local networkPing = self.player:GetNetworkPing() * 1000
+    
+    local dataPing = 0
+    local item = self.Stats.Network.ServerStatsItem:FindFirstChild("Data Ping")
+    if item then
+        local ok, v = pcall(function()
+            return item:GetValueString()
+        end)
+        if ok and v then
+            dataPing = tonumber(v:match("%d+")) or 0
+        end
+    end
+    
+    local totalPing = networkPing + dataPing
+    
+    if totalPing > self.Config.ServerPrediction.HighPingThreshold then
+        networkPing = networkPing * self.Config.ServerPrediction.HighPingReduction
+        totalPing = networkPing + dataPing
+    end
+    
+    return math.min(totalPing, self.Config.ServerPrediction.MaxPing)
+end
+
+function Csync:getPredictedServerPosition()
+    if not self.Config.UseServerPrediction then
+        return self.playerHumanoidRootPart.Position
+    end
+    
+    local currentTime = tick()
+    self.PositionHistory[currentTime] = {
+        Position = self.playerHumanoidRootPart.Position,
+        Rotation = self.playerHumanoidRootPart.Rotation
+    }
+    
+    for time in pairs(self.PositionHistory) do
+        if currentTime - time > self.Config.ServerPrediction.HistoryDuration then
+            self.PositionHistory[time] = nil
+        end
+    end
+    
+    local ping = self:getPing()
+    local backtrackTime = currentTime - (ping / 1000)
+    
+    local closestTime = nil
+    local smallestDiff = math.huge
+    
+    for time, data in pairs(self.PositionHistory) do
+        local diff = math.abs(time - backtrackTime)
+        if diff < smallestDiff then
+            smallestDiff = diff
+            closestTime = time
+        end
+    end
+    
+    if closestTime and self.PositionHistory[closestTime] then
+        return self.PositionHistory[closestTime].Position
+    end
+    
+    return self.playerHumanoidRootPart.Position
+end
+
+function Csync:createVisuals()
+    if self.Instances.desyncVisual then 
+        self.Instances.desyncVisual:Destroy() 
+    end
+    
+    if self.Instances.imageGui then
+        self.Instances.imageGui:Destroy()
+    end
+    
+    if self.Instances.offscreenGui then
+        self.Instances.offscreenGui:Destroy()
+    end
+    
+    if self.Drawings.line then
+        self.Drawings.line:Remove()
+    end
+    
+    if self.Drawings.lineOutline then
+        self.Drawings.lineOutline:Remove()
+    end
+
+    if not self.VisualsEnabled then return end
+
+    local randomNum = math.random(222, 4444)
+    local visualType = self.Config.Visuals.VisualType
+    
+    local desyncVisual = nil
+    
+    if visualType == "Mesh" or visualType == "Both" then
+        desyncVisual = Instance.new("Part")
+        desyncVisual.Name = "DesyVis_Mesh_" .. randomNum
+        desyncVisual.Size = Vector3.new(0.1, 0.1, 0.1)
+        desyncVisual.Color = self.Config.Visuals.DesyncColor
+        desyncVisual.Material = Enum.Material.Neon
+        desyncVisual.Transparency = self.Config.Visuals.Transparency
+        desyncVisual.Anchored = true
+        desyncVisual.CanCollide = false
+        desyncVisual.CastShadow = false
+        
+        local specialMesh = Instance.new("SpecialMesh")
+        specialMesh.MeshId = self.Config.Visuals.MeshId
+        specialMesh.TextureId = "rbxassetid://14123716537"
+        specialMesh.Scale = self.Config.Visuals.MeshScale
+        specialMesh.Offset = self.Config.Visuals.MeshOffset
+        specialMesh.MeshType = Enum.MeshType.FileMesh
+        specialMesh.Parent = desyncVisual
+        
+        if self.Config.Visuals.Highlight.Enabled then
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "DesyncHighlight"
+            highlight.FillColor = self.Config.Visuals.Highlight.FillColor
+            highlight.OutlineColor = self.Config.Visuals.Highlight.OutlineColor
+            highlight.FillTransparency = self.Config.Visuals.Highlight.FillTransparency
+            highlight.OutlineTransparency = self.Config.Visuals.Highlight.OutlineTransparency
+            
+            if self.Config.Visuals.Highlight.DepthMode == "AlwaysOnTop" then
+                highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            else
+                highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+            end
+            
+            highlight.Parent = desyncVisual
+            self.Instances.highlight = highlight
+        end
+
+        desyncVisual.Parent = workspace
+        self.Instances.desyncVisual = desyncVisual
+        self.Instances.specialMesh = specialMesh
+    end
+    
+    if visualType == "Image" or visualType == "Both" then
+        local screenGui = Instance.new("ScreenGui")
+        screenGui.Name = "DesVisUI_" .. randomNum
+        screenGui.ResetOnSpawn = false
+        screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+        screenGui.Enabled = true
+        
+        local frame = Instance.new("Frame")
+        frame.Name = "ImageContainer"
+        frame.Size = UDim2.new(0, 100 * self.Config.Visuals.ImageScale, 
+                                0, 100 * self.Config.Visuals.ImageScale)
+        frame.BackgroundTransparency = 1
+        frame.AnchorPoint = Vector2.new(0.5, 0.5)
+        frame.Parent = screenGui
+        
+        local imageLabel = Instance.new("ImageLabel")
+        imageLabel.Name = "DesyncImage"
+        imageLabel.Size = UDim2.new(1, 0, 1, 0)
+        imageLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
+        imageLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+        imageLabel.BackgroundTransparency = 1
+        imageLabel.Image = self.Config.Visuals.ImageId
+        imageLabel.ScaleType = Enum.ScaleType.Fit
+        imageLabel.Parent = frame
+        
+        screenGui.Parent = self.CoreGui
+        
+        self.Instances.imageGui = screenGui
+        self.Instances.imageFrame = frame
+        self.Instances.imageLabel = imageLabel
+    end
+
+    if self.Config.Visuals.ShowLine then
+        local lineOutline = Drawing.new("Line")
+        lineOutline.Thickness = self.Config.Visuals.Line.OutlineThickness
+        lineOutline.Color = self.Config.Visuals.Line.OutlineColor
+        lineOutline.Transparency = self.Config.Visuals.Line.OutlineTransparency
+        lineOutline.Visible = true
+        
+        local line = Drawing.new("Line")
+        line.Thickness = self.Config.Visuals.Line.MainThickness
+        line.Color = self.Config.Visuals.Line.MainColor
+        line.Transparency = self.Config.Visuals.Line.MainTransparency
+        line.Visible = true
+        
+        self.Drawings.lineOutline = lineOutline
+        self.Drawings.line = line
+    end
+    
+    self:createOffscreenIndicator()
+end
+
+function Csync:createOffscreenIndicator()
+    if self.Instances.offscreenGui then
+        self.Instances.offscreenGui:Destroy()
+    end
+    
+    if not self.VisualsEnabled then return end
+    
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "OffscreenIndicator"
+    screenGui.ResetOnSpawn = false
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    screenGui.Enabled = true
+    
+    local mainContainer = Instance.new("Frame")
+    mainContainer.Name = "MainContainer"
+    mainContainer.Size = UDim2.new(1, 0, 1, 0)
+    mainContainer.BackgroundTransparency = 1
+    mainContainer.Visible = false
+    mainContainer.Parent = screenGui
+    
+    local screenSize = self.Camera.ViewportSize
+    local edgeThickness = 3
+    
+    local topEdge = Instance.new("Frame")
+    topEdge.Name = "TopEdge"
+    topEdge.Size = UDim2.new(0, screenSize.X * 0.2, 0, edgeThickness)
+    topEdge.Position = UDim2.new(0, 0, 0, 0)
+    topEdge.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    topEdge.BackgroundTransparency = 0
+    topEdge.BorderSizePixel = 0
+    topEdge.Visible = false
+    topEdge.Parent = mainContainer
+    
+    local bottomEdge = Instance.new("Frame")
+    bottomEdge.Name = "BottomEdge"
+    bottomEdge.Size = UDim2.new(0, screenSize.X * 0.2, 0, edgeThickness)
+    bottomEdge.Position = UDim2.new(0, 0, 1, -edgeThickness)
+    bottomEdge.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    bottomEdge.BackgroundTransparency = 0
+    bottomEdge.BorderSizePixel = 0
+    bottomEdge.Visible = false
+    bottomEdge.Parent = mainContainer
+    
+    local leftEdge = Instance.new("Frame")
+    leftEdge.Name = "LeftEdge"
+    leftEdge.Size = UDim2.new(0, edgeThickness, 0, screenSize.Y * 0.2)
+    leftEdge.Position = UDim2.new(0, 0, 0, 0)
+    leftEdge.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    leftEdge.BackgroundTransparency = 0
+    leftEdge.BorderSizePixel = 0
+    leftEdge.Visible = false
+    leftEdge.Parent = mainContainer
+    
+    local rightEdge = Instance.new("Frame")
+    rightEdge.Name = "RightEdge"
+    rightEdge.Size = UDim2.new(0, edgeThickness, 0, screenSize.Y * 0.2)
+    rightEdge.Position = UDim2.new(1, -edgeThickness, 0, 0)
+    rightEdge.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    rightEdge.BackgroundTransparency = 0
+    rightEdge.BorderSizePixel = 0
+    rightEdge.Visible = false
+    rightEdge.Parent = mainContainer
+    
+    local cornerSize = 50
+    local cornerContainer = Instance.new("Frame")
+    cornerContainer.Name = "CornerContainer"
+    cornerContainer.Size = UDim2.new(1, 0, 1, 0)
+    cornerContainer.BackgroundTransparency = 1
+    cornerContainer.Parent = mainContainer
+    
+    local topLeftCorner = Instance.new("ImageLabel")
+    topLeftCorner.Name = "TopLeftCorner"
+    topLeftCorner.Size = UDim2.new(0, cornerSize, 0, cornerSize)
+    topLeftCorner.Position = UDim2.new(0, 10, 0, 10)
+    topLeftCorner.BackgroundTransparency = 1
+    topLeftCorner.Image = self.Config.Visuals.ImageId
+    topLeftCorner.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    topLeftCorner.ScaleType = Enum.ScaleType.Fit
+    topLeftCorner.Visible = false
+    topLeftCorner.Parent = cornerContainer
+    
+    local topRightCorner = Instance.new("ImageLabel")
+    topRightCorner.Name = "TopRightCorner"
+    topRightCorner.Size = UDim2.new(0, cornerSize, 0, cornerSize)
+    topRightCorner.Position = UDim2.new(1, -cornerSize - 10, 0, 10)
+    topRightCorner.BackgroundTransparency = 1
+    topRightCorner.Image = self.Config.Visuals.ImageId
+    topRightCorner.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    topRightCorner.ScaleType = Enum.ScaleType.Fit
+    topRightCorner.Visible = false
+    topRightCorner.Parent = cornerContainer
+    
+    local bottomLeftCorner = Instance.new("ImageLabel")
+    bottomLeftCorner.Name = "BottomLeftCorner"
+    bottomLeftCorner.Size = UDim2.new(0, cornerSize, 0, cornerSize)
+    bottomLeftCorner.Position = UDim2.new(0, 10, 1, -cornerSize - 10)
+    bottomLeftCorner.BackgroundTransparency = 1
+    bottomLeftCorner.Image = self.Config.Visuals.ImageId
+    bottomLeftCorner.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    bottomLeftCorner.ScaleType = Enum.ScaleType.Fit
+    bottomLeftCorner.Visible = false
+    bottomLeftCorner.Parent = cornerContainer
+    
+    local bottomRightCorner = Instance.new("ImageLabel")
+    bottomRightCorner.Name = "BottomRightCorner"
+    bottomRightCorner.Size = UDim2.new(0, cornerSize, 0, cornerSize)
+    bottomRightCorner.Position = UDim2.new(1, -cornerSize - 10, 1, -cornerSize - 10)
+    bottomRightCorner.BackgroundTransparency = 1
+    bottomRightCorner.Image = self.Config.Visuals.ImageId
+    bottomRightCorner.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    bottomRightCorner.ScaleType = Enum.ScaleType.Fit
+    bottomRightCorner.Visible = false
+    bottomRightCorner.Parent = cornerContainer
+    
+    screenGui.Parent = self.CoreGui
+    
+    self.Instances.offscreenGui = screenGui
+    self.Instances.mainContainer = mainContainer
+    self.Instances.topEdge = topEdge
+    self.Instances.bottomEdge = bottomEdge
+    self.Instances.leftEdge = leftEdge
+    self.Instances.rightEdge = rightEdge
+    self.Instances.cornerContainer = cornerContainer
+    self.Instances.topLeftCorner = topLeftCorner
+    self.Instances.topRightCorner = topRightCorner
+    self.Instances.bottomLeftCorner = bottomLeftCorner
+    self.Instances.bottomRightCorner = bottomRightCorner
+end
+
 function Csync:updateOffscreenIndicator()
     if not self.VisualsEnabled then 
         if self.Instances.mainContainer then
@@ -170,3 +811,268 @@ function Csync:updateOffscreenIndicator()
         end
     end
 end
+
+function Csync:getClosestEdge(x, y)
+    local screenSize = self.Camera.ViewportSize
+    
+    local distToLeft = x
+    local distToRight = screenSize.X - x
+    local distToTop = y
+    local distToBottom = screenSize.Y - y
+    
+    local minDist = math.min(distToLeft, distToRight, distToTop, distToBottom)
+    
+    if minDist == distToLeft then return "left" end
+    if minDist == distToRight then return "right" end
+    if minDist == distToTop then return "top" end
+    return "bottom"
+end
+
+function Csync:updateLines()
+    if not self.Config.Visuals.ShowLine or not self.VisualsEnabled then 
+        if self.Drawings.line then
+            self.Drawings.line.Visible = false
+        end
+        if self.Drawings.lineOutline then
+            self.Drawings.lineOutline.Visible = false
+        end
+        return 
+    end
+    
+    if not self.Drawings.line or not self.Drawings.lineOutline then return end
+    
+    local line = self.Drawings.line
+    local lineOutline = self.Drawings.lineOutline
+    
+    local visualExists = false
+    local visualPosition = nil
+    
+    if self.Instances.desyncVisual then
+        visualExists = true
+        visualPosition = self.Instances.desyncVisual.Position
+    end
+    
+    if self.playerHumanoidRootPart and visualExists then
+        local realPos = self.playerHumanoidRootPart.Position
+        
+        local realScreenPos, realVisible = self.Camera:WorldToViewportPoint(realPos)
+        local desyncScreenPos, desyncVisible = self.Camera:WorldToViewportPoint(visualPosition)
+        
+        if realVisible and desyncVisible then
+            local fromPos = Vector2.new(realScreenPos.X, realScreenPos.Y)
+            local toPos = Vector2.new(desyncScreenPos.X, desyncScreenPos.Y)
+            
+            local direction = (toPos - fromPos)
+            local length = direction.Magnitude
+            
+            if length > 0 then
+                local normalizedDir = direction / length
+                local extension = self.Config.Visuals.Line.Extension
+                local outlineFrom = fromPos - (normalizedDir * extension)
+                local outlineTo = toPos + (normalizedDir * extension)
+                
+                lineOutline.From = outlineFrom
+                lineOutline.To = outlineTo
+                lineOutline.Visible = true
+                
+                line.From = fromPos
+                line.To = toPos
+                line.Visible = true
+            else
+                lineOutline.Visible = false
+                line.Visible = false
+            end
+        else
+            lineOutline.Visible = false
+            line.Visible = false
+        end
+    else
+        lineOutline.Visible = false
+        line.Visible = false
+    end
+end
+
+function Csync:updateImagePosition()
+    if not self.VisualsEnabled then return end
+    if not self.Instances.imageGui then return end
+    if not self.Instances.desyncVisual then return end
+    
+    local desyncPos = self.Instances.desyncVisual.Position
+    local screenPoint = self.Camera:WorldToScreenPoint(desyncPos)
+    
+    if screenPoint.Z > 0 then
+        self.Instances.imageFrame.Position = UDim2.new(0, screenPoint.X, 0, screenPoint.Y)
+        self.Instances.imageGui.Enabled = true
+    else
+        self.Instances.imageGui.Enabled = false
+    end
+end
+
+function Csync:SetupInputConnection()
+    if self.Connections.inputBegan then
+        self.Connections.inputBegan:Disconnect()
+    end
+    
+    self.Connections.inputBegan = self.UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if not gameProcessed and input.KeyCode == self.ToggleKey then
+            self.VisualsEnabled = not self.VisualsEnabled
+            
+            if self.VisualsEnabled then
+                self:createVisuals()
+            else
+                self:hideVisuals()
+            end
+        end
+    end)
+end
+
+function Csync:SetupConnections()
+    self.Connections.characterAdded = self.player.CharacterAdded:Connect(function(NewCharacter)
+        self.playerCharacter = NewCharacter
+        self.playerHumanoid = self.playerCharacter:WaitForChild("Humanoid")
+        self.playerHumanoidRootPart = self.playerCharacter:WaitForChild("HumanoidRootPart")
+        
+        if self.VisualsEnabled then
+            self:createVisuals()
+        end
+    end)
+    
+    self:SetupInputConnection()
+    
+    self.Connections.heartbeat = self.RunService.Heartbeat:Connect(function(deltaTime)
+        if self.playerCharacter and self.playerHumanoidRootPart then
+            self.playerHumanoidRootPartCFrame = self.playerHumanoidRootPart.CFrame
+            
+            local basePosition
+            if self.WorldPositionLock then
+                basePosition = self.WorldPositionLock
+            else
+                basePosition = self:getPredictedServerPosition()
+            end
+            
+            local desyncedPosition
+            if self.WorldPositionLock then
+                desyncedPosition = self.WorldPositionLock
+            else
+                desyncedPosition = basePosition + Vector3.new(
+                    self.Config.Position.X,
+                    self.Config.Position.Y,
+                    self.Config.Position.Z
+                )
+            end
+            
+            if self.Instances.desyncVisual and self.VisualsEnabled then
+                self.Instances.desyncVisual.CFrame = CFrame.new(desyncedPosition) * self.playerHumanoidRootPart.CFrame.Rotation
+            end
+            
+            self.playerHumanoidRootPart.CFrame = CFrame.new(desyncedPosition) * self.playerHumanoidRootPart.CFrame.Rotation
+            self.RunService.RenderStepped:Wait()
+            self.playerHumanoidRootPart.CFrame = self.playerHumanoidRootPartCFrame
+            self.playerHumanoidRootPartCFrame = self.playerHumanoidRootPart.CFrame
+        end
+    end)
+    
+    self.Connections.renderStepped = self.RunService.RenderStepped:Connect(function()
+        self:updateLines()
+        self:updateImagePosition()
+        self:updateOffscreenIndicator()
+    end)
+    
+    self.OriginalCFrameIndex = hookmetamethod(game, "__index", function(Instance, Property)
+        if self.playerCharacter and self.playerHumanoidRootPart and Instance == self.playerHumanoidRootPart and Property == "CFrame" then
+            if not checkcaller() then
+                return self.playerHumanoidRootPartCFrame
+            end
+        end
+        return self.OriginalCFrameIndex(Instance, Property)
+    end)
+end
+
+function _G.CsyncPos(x, y, z)
+    return Csync:WorldPos(x, y, z)
+end
+
+function _G.Csync(state)
+    return Csync:Toggle(state)
+end
+
+function _G.CsyncServPred(state)
+    return Csync:ServPred(state)
+end
+
+function _G.CsyncLine(state)
+    return Csync:Line(state)
+end
+
+function _G.CsyncLineColorSet(r, g, b)
+    return Csync:LineColor(r, g, b)
+end
+
+function _G.CsyncOutLineColorSet(r, g, b)
+    return Csync:OutlineColor(r, g, b)
+end
+
+function _G.CsyncLineTrans(value)
+    return Csync:LineTrans(value)
+end
+
+function _G.CsyncOutLineTrans(value)
+    return Csync:OutlineTrans(value)
+end
+
+function _G.CsyncVisualType(type)
+    return Csync:VisualType(type)
+end
+
+function _G.CsyncSetMesh(meshId)
+    return Csync:SetMesh(meshId)
+end
+
+function _G.CsyncMeshScale(x, y, z)
+    return Csync:MeshScale(x, y, z)
+end
+
+function _G.CsyncMeshOffset(x, y, z)
+    return Csync:MeshOffset(x, y, z)
+end
+
+function _G.CsyncMeshId(textureId)
+    return Csync:ImageId(textureId)
+end
+
+function _G.CsyncImageScaleSet(scale)
+    return Csync:ImageScale(scale)
+end
+
+function _G.CsyncHighlight(state)
+    return Csync:Highlight(state)
+end
+
+function _G.CsyncHighlightFill(r, g, b)
+    return Csync:HighlightFill(r, g, b)
+end
+
+function _G.CsyncHighlightOutLine(r, g, b)
+    return Csync:HighlightOutline(r, g, b)
+end
+
+function _G.CsyncHighlightFillTrans(value)
+    return Csync:HighlightFillTrans(value)
+end
+
+function _G.CsyncHighlightOutLineTrans(value)
+    return Csync:HighlightOutlineTrans(value)
+end
+
+function _G.CsyncKeybindSet(key)
+    return Csync:Keybind(key)
+end
+
+if _G.CsyncHandler then
+    _G.CsyncHandler:Cleanup()
+end
+
+_G.CsyncHandler = Csync
+Csync:Initialize()
+
+return Csync
