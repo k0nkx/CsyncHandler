@@ -687,7 +687,7 @@ function Csync:updateOffscreenIndicator()
         local dy = posY - screenSize.Y/2
         local distance = math.sqrt(dx*dx + dy*dy)
         
-        local maxDist = math.min(screenSize.X, screenSize.Y) * 0.45
+        local maxDist = math.min(screenSize.X, screenSize.Y) * 5
         
         if distance > 0 then
             posX = screenSize.X/2 + dx/distance * maxDist
