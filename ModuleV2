@@ -532,6 +532,7 @@ function Csync:createOffscreenIndicator()
     
     local screenSize = self.Camera.ViewportSize
     local edgeThickness = 3
+    local strokeThickness = 2
     
     local topEdge = Instance.new("Frame")
     topEdge.Name = "TopEdge"
@@ -543,6 +544,13 @@ function Csync:createOffscreenIndicator()
     topEdge.Visible = false
     topEdge.Parent = mainContainer
     
+    local topStroke = Instance.new("UIStroke")
+    topStroke.Name = "TopStroke"
+    topStroke.Color = Color3.fromRGB(255, 0, 0)
+    topStroke.Thickness = strokeThickness
+    topStroke.Transparency = 0
+    topStroke.Parent = topEdge
+    
     local bottomEdge = Instance.new("Frame")
     bottomEdge.Name = "BottomEdge"
     bottomEdge.Size = UDim2.new(0, screenSize.X * 0.2, 0, edgeThickness)
@@ -552,6 +560,13 @@ function Csync:createOffscreenIndicator()
     bottomEdge.BorderSizePixel = 0
     bottomEdge.Visible = false
     bottomEdge.Parent = mainContainer
+    
+    local bottomStroke = Instance.new("UIStroke")
+    bottomStroke.Name = "BottomStroke"
+    bottomStroke.Color = Color3.fromRGB(255, 0, 0)
+    bottomStroke.Thickness = strokeThickness
+    bottomStroke.Transparency = 0
+    bottomStroke.Parent = bottomEdge
     
     local leftEdge = Instance.new("Frame")
     leftEdge.Name = "LeftEdge"
@@ -563,6 +578,13 @@ function Csync:createOffscreenIndicator()
     leftEdge.Visible = false
     leftEdge.Parent = mainContainer
     
+    local leftStroke = Instance.new("UIStroke")
+    leftStroke.Name = "LeftStroke"
+    leftStroke.Color = Color3.fromRGB(255, 0, 0)
+    leftStroke.Thickness = strokeThickness
+    leftStroke.Transparency = 0
+    leftStroke.Parent = leftEdge
+    
     local rightEdge = Instance.new("Frame")
     rightEdge.Name = "RightEdge"
     rightEdge.Size = UDim2.new(0, edgeThickness, 0, screenSize.Y * 0.2)
@@ -572,6 +594,13 @@ function Csync:createOffscreenIndicator()
     rightEdge.BorderSizePixel = 0
     rightEdge.Visible = false
     rightEdge.Parent = mainContainer
+    
+    local rightStroke = Instance.new("UIStroke")
+    rightStroke.Name = "RightStroke"
+    rightStroke.Color = Color3.fromRGB(255, 0, 0)
+    rightStroke.Thickness = strokeThickness
+    rightStroke.Transparency = 0
+    rightStroke.Parent = rightEdge
     
     local cornerSize = 50
     local cornerContainer = Instance.new("Frame")
@@ -632,6 +661,10 @@ function Csync:createOffscreenIndicator()
     self.Instances.bottomEdge = bottomEdge
     self.Instances.leftEdge = leftEdge
     self.Instances.rightEdge = rightEdge
+    self.Instances.topStroke = topStroke
+    self.Instances.bottomStroke = bottomStroke
+    self.Instances.leftStroke = leftStroke
+    self.Instances.rightStroke = rightStroke
     self.Instances.cornerContainer = cornerContainer
     self.Instances.topLeftCorner = topLeftCorner
     self.Instances.topRightCorner = topRightCorner
