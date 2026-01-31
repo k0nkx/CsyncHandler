@@ -546,7 +546,7 @@ function Csync:createOffscreenIndicator()
     
     local topStroke = Instance.new("UIStroke")
     topStroke.Name = "TopStroke"
-    topStroke.Color = Color3.fromRGB(255, 0, 0)
+    topStroke.Color = Color3.fromRGB(0, 0, 0)
     topStroke.Thickness = strokeThickness
     topStroke.Transparency = 0
     topStroke.Parent = topEdge
@@ -563,7 +563,7 @@ function Csync:createOffscreenIndicator()
     
     local bottomStroke = Instance.new("UIStroke")
     bottomStroke.Name = "BottomStroke"
-    bottomStroke.Color = Color3.fromRGB(255, 0, 0)
+    bottomStroke.Color = Color3.fromRGB(0, 0, 0)
     bottomStroke.Thickness = strokeThickness
     bottomStroke.Transparency = 0
     bottomStroke.Parent = bottomEdge
@@ -580,7 +580,7 @@ function Csync:createOffscreenIndicator()
     
     local leftStroke = Instance.new("UIStroke")
     leftStroke.Name = "LeftStroke"
-    leftStroke.Color = Color3.fromRGB(255, 0, 0)
+    leftStroke.Color = Color3.fromRGB(0, 0, 0)
     leftStroke.Thickness = strokeThickness
     leftStroke.Transparency = 0
     leftStroke.Parent = leftEdge
@@ -597,7 +597,7 @@ function Csync:createOffscreenIndicator()
     
     local rightStroke = Instance.new("UIStroke")
     rightStroke.Name = "RightStroke"
-    rightStroke.Color = Color3.fromRGB(255, 0, 0)
+    rightStroke.Color = Color3.fromRGB(0, 0, 0)
     rightStroke.Thickness = strokeThickness
     rightStroke.Transparency = 0
     rightStroke.Parent = rightEdge
