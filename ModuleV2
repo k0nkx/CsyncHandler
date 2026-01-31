@@ -1,3 +1,6 @@
+-- Csync Module by Arctic
+-- Version: 2.1
+-- GitHub: https://raw.githubusercontent.com/YourUsername/Repository/main/Csync.lua
 
 local Csync = {}
 Csync.__index = Csync
@@ -8,8 +11,7 @@ Csync.Connections = {}
 Csync.Instances = {}
 Csync.Drawings = {}
 Csync.PositionHistory = {}
-Csync.LockedPosition = nil
-Csync.LockedUntil = nil
+Csync.WorldPositionLock = nil  -- World position lock
 Csync.ToggleKey = Enum.KeyCode.LeftAlt
 
 -- Configuration
@@ -27,6 +29,7 @@ Csync.Config = {
         HighPingReduction = 0.9
     },
     Visuals = {
+        Enabled = true,  -- Always on
         DesyncColor = Color3.fromRGB(0, 162, 255),
         Transparency = 0,
         ShowLine = true,
@@ -58,9 +61,29 @@ Csync.Config = {
 
 -- Public API functions
 function Csync:WorldPos(x, y, z)
-    self.Config.Position.X = x or 0
-    self.Config.Position.Y = y or 0
-    self.Config.Position.Z = z or 0
+    if x == nil and y == nil and z == nil then
+        -- Return current position
+        return self.WorldPositionLock or Vector3.new(
+            self.Config.Position.X,
+            self.Config.Position.Y,
+            self.Config.Position.Z
+        )
+    end
+    
+    if x == 0 and y == 0 and z == 0 then
+        -- Clear world position lock
+        self.WorldPositionLock = nil
+        self.Config.Position.X = 0
+        self.Config.Position.Y = 0
+        self.Config.Position.Z = 0
+    else
+        -- Set world position lock
+        self.WorldPositionLock = Vector3.new(x, y, z)
+        self.Config.Position.X = 0
+        self.Config.Position.Y = 0
+        self.Config.Position.Z = 0
+    end
+    
     return self
 end
 
@@ -69,14 +92,17 @@ function Csync:Pos(x, y, z)
 end
 
 function Csync:Stop()
+    -- Clear both relative and world position locks
+    self.WorldPositionLock = nil
     self.Config.Position.X = 0
     self.Config.Position.Y = 0
     self.Config.Position.Z = 0
     return self
 end
 
--- Configuration functions
+-- Configuration functions (all return self for chaining)
 function Csync:Toggle(state)
+    -- Only used to toggle visuals visibility now
     if state ~= nil then
         self.Config.Visuals.Enabled = state
     else
@@ -187,18 +213,6 @@ function Csync:HighlightOutlineTrans(value)
     return self
 end
 
-function Csync:SetLockPos(x, y, z, time)
-    self.LockedPosition = Vector3.new(x, y, z)
-    self.LockedUntil = time and (tick() + time) or math.huge
-    return self
-end
-
-function Csync:UnlockPos()
-    self.LockedPosition = nil
-    self.LockedUntil = nil
-    return self
-end
-
 function Csync:Keybind(key)
     if typeof(key) == "string" then
         key = Enum.KeyCode[key:upper()]
@@ -225,8 +239,8 @@ function Csync:Initialize()
     
     self:SetupConnections()
     
-    -- Set initial visuals state to false (hidden)
-    self.Config.Visuals.Enabled = false
+    -- Create visuals immediately (always on)
+    self:createVisuals()
 end
 
 function Csync:Cleanup()
@@ -260,8 +274,7 @@ function Csync:Cleanup()
         self.OriginalCFrameIndex = nil
     end
     
-    self.LockedPosition = nil
-    self.LockedUntil = nil
+    self.WorldPositionLock = nil
 end
 
 function Csync:getPing()
@@ -428,13 +441,13 @@ function Csync:createVisuals()
         lineOutline.Thickness = self.Config.Visuals.Line.OutlineThickness
         lineOutline.Color = self.Config.Visuals.Line.OutlineColor
         lineOutline.Transparency = self.Config.Visuals.Line.OutlineTransparency
-        lineOutline.Visible = true
+        lineOutline.Visible = self.Config.Visuals.Enabled
         
         local line = Drawing.new("Line")
         line.Thickness = self.Config.Visuals.Line.MainThickness
         line.Color = self.Config.Visuals.Line.MainColor
         line.Transparency = self.Config.Visuals.Line.MainTransparency
-        line.Visible = true
+        line.Visible = self.Config.Visuals.Enabled
         
         self.Drawings.lineOutline = lineOutline
         self.Drawings.line = line
@@ -523,26 +536,27 @@ function Csync:SetupInputConnection()
     
     self.Connections.inputBegan = self.UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if not gameProcessed and input.KeyCode == self.ToggleKey then
+            -- Only toggle visibility, visuals always exist
             self.Config.Visuals.Enabled = not self.Config.Visuals.Enabled
             
             if self.Config.Visuals.Enabled then
                 self:createVisuals()
             else
+                -- Hide visuals but don't destroy them completely
                 if self.Instances.desyncVisual then
-                    self.Instances.desyncVisual:Destroy()
-                    self.Instances.desyncVisual = nil
+                    self.Instances.desyncVisual.Transparency = 1
+                end
+                if self.Instances.highlight then
+                    self.Instances.highlight.Enabled = false
                 end
                 if self.Instances.imageGui then
-                    self.Instances.imageGui:Destroy()
-                    self.Instances.imageGui = nil
+                    self.Instances.imageGui.Enabled = false
                 end
                 if self.Drawings.line then
-                    self.Drawings.line:Remove()
-                    self.Drawings.line = nil
+                    self.Drawings.line.Visible = false
                 end
                 if self.Drawings.lineOutline then
-                    self.Drawings.lineOutline:Remove()
-                    self.Drawings.lineOutline = nil
+                    self.Drawings.lineOutline.Visible = false
                 end
             end
         end
@@ -567,21 +581,26 @@ function Csync:SetupConnections()
             self.playerHumanoidRootPartCFrame = self.playerHumanoidRootPart.CFrame
             
             local basePosition
-            if self.LockedPosition and tick() < self.LockedUntil then
-                basePosition = self.LockedPosition
+            if self.WorldPositionLock then
+                -- Use world position lock
+                basePosition = self.WorldPositionLock
             else
+                -- Use relative position
                 basePosition = self:getPredictedServerPosition()
-                if self.LockedPosition and tick() >= self.LockedUntil then
-                    self.LockedPosition = nil
-                    self.LockedUntil = nil
-                end
             end
             
-            local desyncedPosition = basePosition + Vector3.new(
-                self.Config.Position.X,
-                self.Config.Position.Y,
-                self.Config.Position.Z
-            )
+            local desyncedPosition
+            if self.WorldPositionLock then
+                -- World position lock mode
+                desyncedPosition = self.WorldPositionLock
+            else
+                -- Relative position mode
+                desyncedPosition = basePosition + Vector3.new(
+                    self.Config.Position.X,
+                    self.Config.Position.Y,
+                    self.Config.Position.Z
+                )
+            end
             
             if self.Instances.desyncVisual then
                 self.Instances.desyncVisual.CFrame = CFrame.new(desyncedPosition) * self.playerHumanoidRootPart.CFrame.Rotation
@@ -684,14 +703,6 @@ end
 
 function _G.CsyncHighlightOutLineTrans(value)
     return Csync:HighlightOutlineTrans(value)
-end
-
-function _G.CsyncSetLockPos(x, y, z, time)
-    return Csync:SetLockPos(x, y, z, time)
-end
-
-function _G.CsyncUnlockPos()
-    return Csync:UnlockPos()
 end
 
 function _G.CsyncKeybindSet(key)
